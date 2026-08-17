@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하루핏</title>
+<style>
+  :root{ --navy:#1F2A37; --accent:#149E9C; --gold:#C29A5B; --ink:#242A33;
+         --mut:#6b7280; --line:#e2e6ec; --bg:#f4f6f9; --card:#fff; --fill:#fbfdfd; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:var(--bg);
+       color:var(--ink);margin:0;line-height:1.6;font-size:15px;display:flex;flex-direction:column}
+  .app{max-width:460px;width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column;
+       background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+
+  header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;
+         align-items:center;gap:10px;background:var(--card)}
+  header h1{font-size:17px;margin:0;flex:1}
+  header .num{font-size:12px;color:var(--mut);text-align:right;line-height:1.35}
+  header .num b{color:var(--navy);font-size:14px}
+  header button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:#fff;
+       border-radius:7px;padding:5px 9px;cursor:pointer;color:var(--mut)}
+
+  #대화{flex:1;overflow-y:auto;padding:14px 14px 4px;display:flex;flex-direction:column;gap:9px}
+  .말{max-width:82%;padding:9px 13px;border-radius:14px;white-space:pre-wrap;word-break:break-word;font-size:14.5px}
+  .나{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
+  .앱{align-self:flex-start;background:#eef1f5;border-bottom-left-radius:4px}
+  .앱.경고{background:#fff4f2;border:1px solid #f0c9c1;color:#9a3412}
+  .생각중{align-self:flex-start;color:var(--mut);font-size:13px;padding:4px 6px}
+
+  .채움{align-self:flex-start;max-width:92%;border:1px solid var(--accent);background:#f2fbfa;
+        border-radius:12px;padding:10px 12px;font-size:14px}
+  .채움 b{color:#0f766e}
+  .채움 button{display:block;width:100%;text-align:left;font-family:inherit;font-size:13.5px;
+        background:#fff;border:1px solid #bfe2de;border-radius:8px;padding:8px 10px;
+        margin-top:6px;cursor:pointer}
+
+  .입력칸{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:var(--card)}
+  .입력칸 input{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--fill);
+        padding:10px 15px;font-family:inherit;font-size:15px}
+  .입력칸 button{border:none;background:var(--accent);color:#fff;border-radius:20px;
+        padding:10px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .입력칸 button:disabled{background:#c7d0d6;cursor:default}
+
+  .foot{font-size:11px;color:var(--mut);text-align:center;padding:6px 12px 10px;background:var(--card)}
+
+  .판{position:fixed;inset:0;background:rgba(31,42,55,.45);display:flex;align-items:center;
+      justify-content:center;padding:16px;z-index:10}
+  .판 .속{background:#fff;border-radius:14px;padding:18px 20px 20px;max-width:420px;width:100%;
+      max-height:88vh;overflow-y:auto}
+  .판 h2{font-size:16px;margin:0 0 10px}
+  label{display:block;font-weight:700;font-size:13px;margin:10px 0 3px}
+  input[type=text],input[type=number],input[type=password]{width:100%;border:1px solid var(--line);
+      border-radius:8px;background:var(--fill);padding:9px 11px;font-family:inherit;font-size:15px}
+  .row{display:flex;gap:9px}.row>*{flex:1}
+  .btns{display:flex;gap:7px;margin-top:4px}
+  .btns button{flex:1;font-family:inherit;font-size:14px;border:1px solid var(--line);
+      background:#fff;border-radius:9px;padding:9px 4px;cursor:pointer;color:var(--ink)}
+  .btns button.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .chips label{display:inline-flex;align-items:center;gap:5px;font-weight:400;font-size:13.5px;
+      border:1px solid var(--line);border-radius:20px;padding:5px 11px;margin:0;cursor:pointer;background:#fff}
+  .chips input{margin:0}
+  .go{width:100%;font-family:inherit;font-size:15px;font-weight:700;border:none;border-radius:10px;
+      padding:12px;cursor:pointer;background:var(--accent);color:#fff;margin-top:14px}
+  .경고상자{background:#fff4f2;border:1px solid #f0c9c1;color:#9a3412;border-radius:9px;
+      padding:10px 12px;margin-top:9px;font-size:13.5px}
+  .안내{font-size:12.5px;color:var(--mut);margin-top:4px;line-height:1.5}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>하루핏</h1>
+    <div class="num">남은 <b id="남은칼로리">-</b> kcal<br>단백질 <b id="남은단백질">-</b> g</div>
+    <button onclick="설정열기()">설정</button>
+  </header>
+
+  <div id="대화"></div>
+
+  <div class="입력칸">
+    <input type="text" id="입력" placeholder="제육덮밥 / 오늘 야근이야 / 단백질 뭐로 채워?"
+           onkeydown="if(event.key==='Enter')보내기()" autocomplete="off">
+    <button id="보내기버튼" onclick="보내기()">보내기</button>
+  </div>
+
+  <div class="foot">
+    모든 숫자는 <b>대략</b>입니다 · <b>의료 조언이 아닙니다</b>
+  </div>
+</div>
+
+
+<!-- ══════ 설문 ══════ -->
+<div class="판 hide" id="판-설문"><div class="속">
+  <h2 id="설문제목">처음 한 번만 적어주세요</h2>
+  <div class="row">
+    <div><label>키 (cm)</label><input type="number" id="키" value="175"></div>
+    <div><label>지금 몸무게 (kg)</label><input type="number" id="현재체중" value="78"></div>
+  </div>
+  <div class="row">
+    <div><label>목표 몸무게 (kg)</label><input type="number" id="목표체중" value="70"></div>
+    <div><label>몇 주 안에</label><input type="number" id="기간주" value="12"></div>
+  </div>
+  <label>못 먹는 것 · 다친 곳</label>
+  <div class="chips" id="금기칸"></div>
+  <div class="안내">없으면 [없음]을 눌러야 넘어갑니다.</div>
+  <label>회사나 집 위치</label>
+  <input type="text" id="위치" value="강남역 3번 출구">
+  <label>코치 말투</label>
+  <div class="btns" id="말투칸">
+    <button data-v="엄마" class="on">엄마</button>
+    <button data-v="스파르타">스파르타</button>
+  </div>
+  <button class="go" id="설문버튼" onclick="설문저장()">시작하기</button>
+  <button class="go hide" id="설문취소" style="background:#eef1f5;color:#374151"
+          onclick="설문닫기()">그만두기</button>
+  <div id="설문경고"></div>
+</div></div>
+
+
+<!-- ══════ 설정 ══════ -->
+<div class="판 hide" id="판-설정"><div class="속">
+  <h2>설정</h2>
+
+  <label>코치 말투</label>
+  <div class="btns" id="말투칸2">
+    <button data-v="엄마">엄마</button><button data-v="스파르타">스파르타</button>
+  </div>
+  <div class="안내">바꾸면 다음 답변부터 말투가 바뀝니다. 기록은 그대로 남습니다.</div>
+
+  <label>내 정보</label>
+  <button class="go" style="background:#eef1f5;color:#374151;margin-top:2px"
+          onclick="설문열기()">목표 몸무게 · 못 먹는 것 · 위치 고치기</button>
+  <div class="안내" id="프로필요약"></div>
+
+  <label>AI 연결 (Claude API 키)</label>
+  <input type="password" id="키입력" placeholder="sk-ant-...">
+  <div class="안내">
+    <b>안 넣어도 앱은 돌아갑니다.</b> 넣으면 대화가 훨씬 자연스러워집니다.<br>
+    키는 이 브라우저에만 저장되고 어디로도 전송되지 않습니다.<br>
+    <b style="color:#9a3412">주의</b> — 발표·공유용 화면에서는 키를 지우세요.
+  </div>
+  <div id="연결상태" class="안내"></div>
+
+  <button class="go" style="background:#eef1f5;color:#374151" onclick="설정닫기()">닫기</button>
+  <button class="go" style="background:#eef1f5;color:#374151" onclick="오늘초기화()">오늘 대화 지우기</button>
+  <button class="go" style="background:#fee2e2;color:#991b1b" onclick="전체초기화()">전부 지우고 처음부터</button>
+</div></div>
+
+
+<!-- ═══ C 의 파일 · A 의 파일을 먼저 읽어들입니다. 순서 바꾸지 마세요 ═══ -->
+<script src="자료.js"></script>
+<script src="말.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   하루핏.html  —  B 가 혼자 쓰는 파일
+   채팅 화면, 저장, AI 호출.  자료.js · 말.js 는 열지 않습니다.
+
+   [한 줄이 들어오면 이 순서로 처리합니다]
+     1. 입력검사(A)   — 증상·약이면 AI를 부르지 않고 바로 막는다
+     2. AI 호출 or 규칙으로답하기(A)
+     3. 출력검사(A)   — AI 답에 금지어가 있으면 갈아끼운다
+     4. 화면에 표시 + 기록 반영
+   ═══════════════════════════════════════════════════════════ */
+
+const 저장키 = "harufit-v2";
+let 상태 = { 프로필:null, 키:"", 오늘:{ 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] } };
+let 보내는중 = false;
+
+function 오늘날짜(){ return new Date().toISOString().slice(0,10); }
+
+let 저장가능 = true;
+function 저장(){
+  if(!저장가능) return;
+  try{ localStorage.setItem(저장키, JSON.stringify(상태)); }
+  catch(e){ 저장가능 = false; console.warn("저장이 안 되는 환경입니다. 앱은 그대로 쓸 수 있습니다."); }
+}
+function 불러오기(){
+  try{
+    const raw = localStorage.getItem(저장키);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d.프로필) 상태.프로필 = d.프로필;
+    if(d.키) 상태.키 = d.키;
+    if(d.오늘 && d.오늘.날짜 === 오늘날짜()) 상태.오늘 = d.오늘;
+    else if(d.오늘) 상태.어제 = d.오늘;
+  }catch(e){ /* 깨진 저장본은 무시 */ }
+}
+
+/* ── 화면 ── */
+function 말풍선(누가, 글, 경고){
+  const d = document.createElement("div");
+  d.className = "말 " + (누가==="나" ? "나" : "앱") + (경고 ? " 경고" : "");
+  d.textContent = 글;
+  document.getElementById("대화").appendChild(d);
+  아래로();
+  return d;
+}
+function 아래로(){
+  const c = document.getElementById("대화");
+  c.scrollTop = c.scrollHeight;
+}
+function 대화그리기(){
+  document.getElementById("대화").innerHTML = "";
+  상태.오늘.대화.forEach(m => 말풍선(m.누가, m.글, m.경고));
+  if(상태.오늘.대화.length === 0){
+    앱말(문장만들기(상태.프로필.말투, "첫인사", {}));
+  }
+}
+function 앱말(글, 경고){
+  상태.오늘.대화.push({ 누가:"앱", 글, 경고:!!경고 });
+  말풍선("앱", 글, 경고);
+  저장();
+}
+function 내말(글){
+  상태.오늘.대화.push({ 누가:"나", 글 });
+  말풍선("나", 글);
+  저장();
+}
+
+function 숫자갱신(){
+  if(!상태.프로필) return;
+  const 기준 = 기준값계산(상태.프로필);                       // ← 자료.js
+  const 먹은kcal = 상태.오늘.기록.reduce((a,b)=>a+b.kcal,0);
+  const 먹은단백질 = 상태.오늘.기록.reduce((a,b)=>a+b.단백질,0);
+  document.getElementById("남은칼로리").textContent = 기준.목표kcal - 먹은kcal;
+  document.getElementById("남은단백질").textContent = 기준.목표단백질 - 먹은단백질;
+}
+
+/* ── 부족분 채우기 카드 ── 반드시 안전검사를 통과한 것만 ── */
+function 채움카드(){
+  const 기준 = 기준값계산(상태.프로필);
+  const 남은단백질 = 기준.목표단백질 - 상태.오늘.기록.reduce((a,b)=>a+b.단백질,0);
+  if(남은단백질 <= 15 || 상태.오늘.기록.length === 0) return;
+
+  const 통과 = 안전검사(식당표, 상태.프로필.못먹는것)           // ← 말.js + 자료.js
+               .filter(m => m.거리 <= 500)
+               .sort((a,b)=>b.단백질-a.단백질)
+               .slice(0,3);
+  if(!통과.length) return;
+
+  const d = document.createElement("div");
+  d.className = "채움";
+  d.innerHTML = "<b>" + 문장만들기(상태.프로필.말투,"부족",{g:남은단백질}) + "</b> " +
+                상태.프로필.위치 + " 기준 500m 안이야." +
+                통과.map(m => '<button onclick="메뉴탭(\''+m.메뉴+'\')">'+
+                  m.가게+' · '+m.메뉴+' — '+m.거리+'m · 단백질 '+m.단백질+'g</button>').join("");
+  document.getElementById("대화").appendChild(d);
+  아래로();
+}
+
+/* ── 한 줄 보내기 ── */
+async function 보내기(){
+  if(보내는중) return;
+  const 입력 = document.getElementById("입력");
+  const 글 = 입력.value.trim();
+  if(!글 || !상태.프로필) return;
+  입력.value = "";
+  내말(글);
+
+  // 1. 입력 검사 — AI를 부르기 전에 막는다
+  const 막기 = 입력검사(글);                                   // ← 말.js
+  if(막기.막힘){ 앱말(막기.답, true); return; }
+
+  보내는중 = true;
+  document.getElementById("보내기버튼").disabled = true;
+  const 기다림 = document.createElement("div");
+  기다림.className = "생각중";
+  기다림.textContent = "생각 중…";
+  document.getElementById("대화").appendChild(기다림);
+  아래로();
+
+  let 결과;
+  try{
+    // 2. AI 호출 (키가 있으면) 또는 규칙으로 답하기
+    결과 = 상태.키 ? await AI에게물어보기(글) : 규칙으로답하기(글, 상태.프로필, 상태.오늘);
+  }catch(e){
+    console.warn("AI 호출 실패 — 규칙으로 대신합니다:", e.message);
+    결과 = 규칙으로답하기(글, 상태.프로필, 상태.오늘);        // ← 말.js
+  }
+  기다림.remove();
+
+  // 3. 출력 검사 — AI 답에 금지어가 있으면 갈아끼운다
+  const 검사 = 출력검사(결과.답 || "");                        // ← 말.js
+  앱말(검사.답, 검사.막힘);
+
+  // 4. 기록 반영
+  if(결과.컨디션) 상태.오늘.컨디션 = 결과.컨디션;
+  if(결과.일정)   상태.오늘.일정   = 결과.일정;
+  (결과.음식 || []).forEach(m => {
+    상태.오늘.기록.push({ 이름:m.이름, kcal:m.kcal, 단백질:m.단백질 });
+  });
+  저장(); 숫자갱신();
+  if(결과.종류 === "음식") 채움카드();
+
+  보내는중 = false;
+  document.getElementById("보내기버튼").disabled = false;
+  document.getElementById("입력").focus();
+}
+
+/* ── AI 호출 ──
+   브라우저에서 직접 부르므로 anthropic-dangerous-direct-browser-access 헤더가 필요합니다.
+   file:// 로 열면 막힙니다 — 로컬 서버나 GitHub Pages에서 열어야 합니다. */
+async function AI에게물어보기(글){
+  const 최근 = 상태.오늘.대화.slice(-8).map(m => ({
+    role: m.누가==="나" ? "user" : "assistant",
+    content: m.글
+  }));
+
+  const 응답 = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": 상태.키,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-opus-5",
+      max_tokens: 2048,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: 답변형식 }        // ← 말.js
+      },
+      system: 시스템지시문(상태.프로필, 상태.오늘),               // ← 말.js
+      messages: 최근.length ? 최근 : [{ role:"user", content:글 }]
+    })
+  });
+
+  if(!응답.ok){
+    const t = await 응답.text();
+    throw new Error("API " + 응답.status + " " + t.slice(0,200));
+  }
+  const data = await 응답.json();
+
+  // 거절당했으면 규칙으로 넘긴다
+  if(data.stop_reason === "refusal") throw new Error("refusal");
+
+  const 글블록 = (data.content || []).find(b => b.type === "text");
+  if(!글블록) throw new Error("빈 응답");
+  return JSON.parse(글블록.text);
+}
+
+/* ── 추천 메뉴를 누르면 그게 곧 기록이 된다 ── */
+function 메뉴탭(메뉴){
+  const m = 식당표.find(x => x.메뉴 === 메뉴);
+  if(!m) return;
+  상태.오늘.기록.push({ 이름:메뉴, kcal:m.kcal, 단백질:m.단백질 });
+  저장(); 숫자갱신();
+  앱말(문장만들기(상태.프로필.말투, "기록", {메뉴:메뉴, kcal:m.kcal}));
+}
+
+/* ── 설문 · 설정 ── */
+function 버튼묶음(칸id, 콜백){
+  const 칸 = document.getElementById(칸id);
+  칸.querySelectorAll("button").forEach(b=>{
+    b.onclick = ()=>{
+      칸.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      if(콜백) 콜백(b.dataset.v);
+    };
+  });
+}
+function 선택값(칸id){
+  const b = document.getElementById(칸id).querySelector("button.on");
+  return b ? b.dataset.v : null;
+}
+function 금기칸그리기(){
+  document.getElementById("금기칸").innerHTML = 금기후보.map(x =>
+    '<label><input type="checkbox" value="'+x+'">'+x+'</label>').join("");
+}
+/* 설문 판 열기 —
+   처음이면 빈 화면, 나중에 고칠 때는 지금 값을 채워서 엽니다. */
+function 설문열기(){
+  const 고치기 = !!상태.프로필;
+  document.getElementById("설문제목").textContent = 고치기 ? "내 정보 고치기" : "처음 한 번만 적어주세요";
+  document.getElementById("설문버튼").textContent = 고치기 ? "저장하기" : "시작하기";
+  document.getElementById("설문취소").classList.toggle("hide", !고치기);
+  document.getElementById("설문경고").innerHTML = "";
+
+  if(고치기){
+    const p = 상태.프로필;
+    document.getElementById("키").value = p.키;
+    document.getElementById("현재체중").value = p.현재체중;
+    document.getElementById("목표체중").value = p.목표체중;
+    document.getElementById("기간주").value = p.기간주;
+    document.getElementById("위치").value = p.위치;
+    document.querySelectorAll('#금기칸 input').forEach(i=>{
+      i.checked = p.못먹는것.includes(i.value) || (p.못먹는것.length===0 && i.value==="없음");
+    });
+    document.querySelectorAll("#말투칸 button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v === p.말투));
+  }
+  document.getElementById("판-설정").classList.add("hide");
+  document.getElementById("판-설문").classList.remove("hide");
+}
+function 설문닫기(){
+  document.getElementById("판-설문").classList.add("hide");
+}
+
+function 설문저장(){
+  const 고치기 = !!상태.프로필;
+  const 이전금기 = 고치기 ? 상태.프로필.못먹는것.slice() : [];
+
+  const 프로필 = {
+    키:+document.getElementById("키").value,
+    현재체중:+document.getElementById("현재체중").value,
+    목표체중:+document.getElementById("목표체중").value,
+    기간주:+document.getElementById("기간주").value,
+    못먹는것:[...document.querySelectorAll('#금기칸 input:checked')]
+              .map(i=>i.value).filter(v=>v!=="없음"),
+    위치:document.getElementById("위치").value,
+    말투:선택값("말투칸") || "엄마"
+  };
+  const 경고 = document.getElementById("설문경고");
+  if(document.querySelectorAll('#금기칸 input:checked').length === 0){
+    경고.innerHTML = '<div class="경고상자">못 먹는 것을 확인해 주세요. 없으면 <b>[없음]</b>을 눌러야 넘어갑니다.</div>';
+    return;
+  }
+  const 판정 = 목표안전한가(프로필);                            // ← 자료.js
+  if(!판정.ok){ 경고.innerHTML = '<div class="경고상자">'+판정.메시지+'</div>'; return; }
+
+  경고.innerHTML = "";
+  상태.프로필 = 프로필;
+  저장();
+  document.getElementById("판-설문").classList.add("hide");
+
+  if(!고치기){ 대화그리기(); 숫자갱신(); return; }
+
+  // ── 고친 경우 ──
+  숫자갱신();
+  // ★ 못 먹는 것이 바뀌었으면, 이미 화면에 떠 있는 추천을 다시 검사한다.
+  //   안 그러면 방금 등록한 금기가 든 메뉴가 화면에 그대로 남는다.
+  const 금기바뀜 = 이전금기.join() !== 프로필.못먹는것.join();
+  if(금기바뀜) 카드재검사();
+  앱말(바뀐것안내(이전금기, 프로필));
+}
+
+/* 화면에 남아 있는 추천 카드를 새 금기로 다시 거른다 */
+function 카드재검사(){
+  document.querySelectorAll(".채움").forEach(카드 => {
+    let 남은개수 = 0;
+    카드.querySelectorAll("button").forEach(b => {
+      const 메뉴 = (b.getAttribute("onclick").match(/'([^']+)'/) || [])[1];
+      const m = 식당표.find(x => x.메뉴 === 메뉴);
+      const 통과 = m && 안전검사([m], 상태.프로필.못먹는것).length > 0;   // ← 말.js
+      if(통과) 남은개수++; else b.remove();
+    });
+    if(남은개수 === 0) 카드.remove();
+  });
+}
+
+function 바뀐것안내(이전금기, p){
+  const 새금기 = p.못먹는것.filter(x => !이전금기.includes(x));
+  const 기준 = 기준값계산(p);
+  let 글 = "알겠어. 이제 하루 " + 기준.목표kcal + "kcal, 단백질 " + 기준.목표단백질 + "g으로 볼게.";
+  if(새금기.length) 글 += "\n" + 새금기.join(", ") + " 들어간 건 앞으로 추천 안 할게.";
+  return 글;
+}
+function 설정열기(){
+  document.getElementById("키입력").value = 상태.키 || "";
+  document.querySelectorAll("#말투칸2 button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v === (상태.프로필 && 상태.프로필.말투)));
+  프로필요약그리기();
+  연결상태그리기();
+  document.getElementById("판-설정").classList.remove("hide");
+}
+function 프로필요약그리기(){
+  const p = 상태.프로필;
+  if(!p) return;
+  document.getElementById("프로필요약").innerHTML =
+    "지금 — " + p.현재체중 + "kg → " + p.목표체중 + "kg (" + p.기간주 + "주) · " +
+    "못 먹는 것: " + (p.못먹는것.join(", ") || "없음") + " · " + p.위치;
+}
+function 설정닫기(){
+  상태.키 = document.getElementById("키입력").value.trim();
+  저장();
+  document.getElementById("판-설정").classList.add("hide");
+}
+function 연결상태그리기(){
+  const el = document.getElementById("연결상태");
+  const file = location.protocol === "file:";
+  el.innerHTML = file
+    ? '<b style="color:#9a3412">지금은 파일을 직접 열어서 AI 연결이 안 됩니다.</b><br>로컬 서버나 GitHub Pages로 열어야 합니다. (AI 없이도 앱은 그대로 돌아갑니다)'
+    : (상태.키 ? "AI 연결됨" : "AI 미연결 — 준비된 답으로 대신합니다");
+}
+function 오늘초기화(){
+  상태.오늘 = { 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] };
+  저장(); 대화그리기(); 숫자갱신(); 설정닫기();
+}
+function 전체초기화(){ try{ localStorage.removeItem(저장키); }catch(e){} location.reload(); }
+
+/* ── 시작 ── */
+불러오기();
+금기칸그리기();
+버튼묶음("말투칸");
+버튼묶음("말투칸2", v=>{ if(상태.프로필){ 상태.프로필.말투=v; 저장(); } });
+if(상태.프로필){
+  대화그리기(); 숫자갱신();
+} else {
+  설문열기();
+}
+</script>
+</body>
+</html>
