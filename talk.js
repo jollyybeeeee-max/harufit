@@ -116,6 +116,16 @@ ${음식목록}
 
 
 // AI 답변의 모양 — 이 형식으로 돌려달라고 요청합니다.
+//
+// ★★ A 에게 — 이 부분(답변형식)은 손대지 마세요 ★★
+//    이건 앱이 하는 "말"이 아니라 AI와 주고받는 기술 규격입니다.
+//    2025-08-17, B 가 이미 고쳤습니다. AI 호출이 400 오류로 막히던 걸 잡은 겁니다.
+//    클로드가 이 부분을 다시 써주겠다고 해도 거절하세요.
+//
+//    [무엇이 문제였나]
+//    컨디션·일정을 type:["string","null"] + enum 으로 적었더니 API가 거절했습니다.
+//      Enum value '좋음' does not match declared type '["string","null"]'
+//    "글자 또는 없음"을 나타낼 때는 아래처럼 anyOf 로 나눠 써야 합니다.
 const 답변형식 = {
   type: "object",
   properties: {
@@ -123,8 +133,8 @@ const 답변형식 = {
     음식:   { type:"array", items:{ type:"object", properties:{
                 이름:{type:"string"}, kcal:{type:"integer"}, 단백질:{type:"integer"}
               }, required:["이름","kcal","단백질"], additionalProperties:false } },
-    컨디션: { type:["string","null"], enum:["좋음","보통","피곤",null] },
-    일정:   { type:["string","null"], enum:["평범","야근","약속",null] },
+    컨디션: { anyOf:[ { type:"string", enum:["좋음","보통","피곤"] }, { type:"null" } ] },
+    일정:   { anyOf:[ { type:"string", enum:["평범","야근","약속"] }, { type:"null" } ] },
     답:     { type:"string" }
   },
   required: ["종류","음식","컨디션","일정","답"],
