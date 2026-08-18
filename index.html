@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>하루핏</title>
+<!-- 탭 아이콘. 없으면 브라우저가 favicon.ico 를 찾다가 콘솔에 404 를 남깁니다. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23C2703D'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='%23FDFBF7'%3E%ED%95%98%3C/text%3E%3C/svg%3E">
 <style>
   /* ── 색과 글꼴 ──────────────────────────────────────────
      여기 값만 바꾸면 앱 전체 색이 한 번에 바뀝니다.
@@ -123,6 +125,9 @@
   .row{display:flex;gap:10px}.row>*{flex:1}
   .btns{display:flex;gap:8px;margin-top:5px}
   .btns.감싸기{flex-wrap:wrap}
+  /* 캐릭터 9개 — 한 줄에 세 개씩 */
+  .btns.캐릭터칸{display:grid;grid-template-columns:repeat(3,1fr)}
+  .btns.캐릭터칸 button{flex:none;padding-left:4px;padding-right:4px}
   .btns.감싸기 button{flex:1 1 calc(50% - 4px);min-width:0}
   .btns button{flex:1;font-family:inherit;font-size:14px;border:1px solid var(--line);
       background:var(--card);border-radius:10px;padding:10px 4px;cursor:pointer;color:var(--ink)}
@@ -227,10 +232,19 @@
   <div class="안내" id="위치안내">
     근처 가게를 추천할 때만 씁니다. 안 눌러도 됩니다 — 적어주신 글자로 씁니다.
   </div>
-  <label>코치 말투</label>
-  <div class="btns" id="말투칸">
-    <button data-v="엄마" class="on">엄마</button>
-    <button data-v="스파르타">스파르타</button>
+  <label>코치 캐릭터</label>
+  <div class="btns 캐릭터칸" id="캐릭터칸">
+    <button data-v="다정" class="on">다정</button><button data-v="시크">시크</button>
+    <button data-v="햇살">햇살</button><button data-v="프로">프로</button>
+    <button data-v="젠틀">젠틀</button><button data-v="텐션">텐션</button>
+    <button data-v="머슬">머슬</button><button data-v="파이터">파이터</button>
+    <button data-v="차분">차분</button>
+  </div>
+  <div class="안내" id="캐릭터설명칸"></div>
+
+  <label>말투</label>
+  <div class="btns" id="말투체칸">
+    <button data-v="반말" class="on">반말</button><button data-v="존댓말">존댓말</button>
   </div>
   <!-- 설문이 길어서 아래에 붙여둡니다. 스크롤해도 항상 보입니다. -->
   <div class="바닥">
@@ -245,11 +259,21 @@
 <div class="판 hide" id="판-설정"><div class="속">
   <h2>설정</h2>
 
-  <label>코치 말투</label>
-  <div class="btns" id="말투칸2">
-    <button data-v="엄마">엄마</button><button data-v="스파르타">스파르타</button>
+  <label>코치 캐릭터</label>
+  <div class="btns 캐릭터칸" id="캐릭터칸2">
+    <button data-v="다정">다정</button><button data-v="시크">시크</button>
+    <button data-v="햇살">햇살</button><button data-v="프로">프로</button>
+    <button data-v="젠틀">젠틀</button><button data-v="텐션">텐션</button>
+    <button data-v="머슬">머슬</button><button data-v="파이터">파이터</button>
+    <button data-v="차분">차분</button>
   </div>
-  <div class="안내">바꾸면 다음 답변부터 말투가 바뀝니다. 기록은 그대로 남습니다.</div>
+  <div class="안내" id="캐릭터설명칸2"></div>
+
+  <label>말투</label>
+  <div class="btns" id="말투체칸2">
+    <button data-v="반말">반말</button><button data-v="존댓말">존댓말</button>
+  </div>
+  <div class="안내">바꾸면 다음 답변부터 바뀝니다. 기록은 그대로 남습니다.</div>
 
   <!-- 위치는 자주 바꾸게 되니 설문에 들어가지 않고 여기서 바로 처리합니다 -->
   <label>위치</label>
@@ -312,15 +336,32 @@ function 저장(){
   try{ localStorage.setItem(저장키, JSON.stringify(상태)); }
   catch(e){ 저장가능 = false; console.warn("저장이 안 되는 환경입니다. 앱은 그대로 쓸 수 있습니다."); }
 }
+/* 버튼식이던 시절의 저장본에는 대화 칸이 없습니다.
+   그대로 쓰면 화면을 그릴 때 멈춰버려서, 빠진 칸을 채워 넣고 씁니다. */
+function 오늘고치기(하루){
+  return {
+    날짜:   하루.날짜 || 오늘날짜(),
+    컨디션: 하루.컨디션 != null ? 하루.컨디션 : null,
+    일정:   하루.일정   != null ? 하루.일정   : null,
+    기록:   Array.isArray(하루.기록) ? 하루.기록 : [],
+    대화:   Array.isArray(하루.대화) ? 하루.대화 : []
+  };
+}
+
 function 불러오기(){
   try{
     const raw = localStorage.getItem(저장키);
     if(!raw) return;
     const d = JSON.parse(raw);
-    if(d.프로필) 상태.프로필 = d.프로필;
+    if(d.프로필){
+      상태.프로필 = d.프로필;
+      // 예전 버전으로 저장된 프로필 살리기 — 말투 → 캐릭터 · 말투체
+      if(!상태.프로필.캐릭터) 상태.프로필.캐릭터 = 옛말투대응[상태.프로필.말투] || "다정";
+      if(!상태.프로필.말투체) 상태.프로필.말투체 = "반말";
+    }
     if(d.키) 상태.키 = d.키;
-    if(d.오늘 && d.오늘.날짜 === 오늘날짜()) 상태.오늘 = d.오늘;
-    else if(d.오늘) 상태.어제 = d.오늘;
+    if(d.오늘 && d.오늘.날짜 === 오늘날짜()) 상태.오늘 = 오늘고치기(d.오늘);
+    else if(d.오늘) 상태.어제 = 오늘고치기(d.오늘);
   }catch(e){ /* 깨진 저장본은 무시 */ }
 }
 
@@ -341,7 +382,7 @@ function 대화그리기(){
   document.getElementById("대화").innerHTML = "";
   상태.오늘.대화.forEach(m => 말풍선(m.누가, m.글, m.경고));
   if(상태.오늘.대화.length === 0){
-    앱말(문장만들기(상태.프로필.말투, "첫인사", {}));
+    앱말(캐릭터문장(상태.프로필, "첫인사", {}));
   }
 }
 function 앱말(글, 경고){
@@ -551,10 +592,16 @@ function 주변찾아보기(위치글){
    식당표는 C 가 관리합니다. 설문을 저장하면 그 동네 가게로 바뀌고,
    못 찾으면 기본 목록(강남역)이 남습니다. 어느 쪽이든 재료가 적혀 있고,
    안전검사를 통과한 것만 보여줍니다 — 모르면 추천하지 않습니다. */
-function 채움카드(){
+/* 근처 가게를 묻는 말 — 이때는 먹은 게 없어도 카드를 띄웁니다.
+   AI 는 가게를 못 찾지만 화면은 찾을 수 있습니다. 물어봤는데 아무것도
+   안 나오면 "못 하는 앱"으로 보입니다. */
+// "근처 뭐 먹지" 같은 말이면 추천 카드를 띄웁니다. (음식 기록으로 인식된 말에는 안 걸립니다)
+const 근처묻는말 = /근처|주변|가까운|여기서|이 ?동네|동네에|어디서 먹|뭐 먹|어디 ?가|식당|맛집|파는 ?데|[가-힣]{2,}집|먹[^\n]{0,5}추천/;
+
+function 채움카드(강제){
   const 기준 = 기준값계산(상태.프로필);
   const 남은단백질 = 기준.목표단백질 - 상태.오늘.기록.reduce((a,b)=>a+(b.단백질||0),0);
-  if(남은단백질 <= 15 || 상태.오늘.기록.length === 0) return;
+  if(!강제 && (남은단백질 <= 15 || 상태.오늘.기록.length === 0)) return;
 
   const 통과 = 안전검사(식당표, 상태.프로필.못먹는것)           // ← talk.js + data.js
                .filter(m => m.거리 <= 500)
@@ -562,11 +609,15 @@ function 채움카드(){
                .slice(0,3);
   if(!통과.length) return;
 
+  const 머리말 = (강제 && 남은단백질 <= 15)
+    ? "이 근처에서 먹을 만한 곳이야."
+    : 캐릭터문장(상태.프로필,"부족",{g:남은단백질});
+
   const d = document.createElement("div");
   d.className = "채움";
   d.innerHTML =
-    "<b>" + 문장만들기(상태.프로필.말투,"부족",{g:남은단백질}) + "</b> " +
-    상태.프로필.위치 + " 기준 500m 안이야." +
+    "<b>" + 머리말 + "</b> " +
+    위치보이기(상태.프로필) + " 기준 500m 안이야." +
     '<div class="묶음 아는곳">' +
     통과.map(m => {
       const 지도 = (typeof 지도링크 === "function") ? 지도링크(m.메뉴) : (m.지도 || null);
@@ -736,6 +787,7 @@ async function 답받기(글, 사진){
   });
   저장(); 숫자갱신();
   if(결과.종류 === "음식") 채움카드();
+  else if(!사진 && 근처묻는말.test(글)) 채움카드(true);   // 근처를 물었으면 먹은 게 없어도 보여줍니다
 
   보내는중 = false;
   document.getElementById("보내기버튼").disabled = false;
@@ -809,7 +861,7 @@ function 메뉴탭(메뉴){
   상태.오늘.기록.push(영양채우기({ 이름:메뉴, kcal:m.kcal, 단백질:m.단백질,
                                     탄수화물:m.탄수화물, 지방:m.지방 }));
   저장(); 숫자갱신();
-  앱말(문장만들기(상태.프로필.말투, "기록", {메뉴:메뉴, kcal:m.kcal}));
+  앱말(캐릭터문장(상태.프로필, "기록", {메뉴:메뉴, kcal:m.kcal}));
 }
 
 /* ── 설문 · 설정 ── */
@@ -826,6 +878,24 @@ function 버튼묶음(칸id, 콜백){
 function 선택값(칸id){
   const b = document.getElementById(칸id).querySelector("button.on");
   return b ? b.dataset.v : null;
+}
+
+/* ── 코치 캐릭터 ──
+   A 가 말투(엄마·스파르타) 를 캐릭터 9종 + 말투체(반말·존댓말) 로 바꿨습니다.
+   예전에 저장된 프로필에는 캐릭터 칸이 없으니 옛 말투를 비슷한 캐릭터로 옮겨줍니다. */
+const 옛말투대응 = { 엄마:"다정", 친구:"텐션", 스파르타:"머슬" };
+
+function 캐릭터고르기(프로필){
+  if(!프로필) return "다정";
+  return 프로필.캐릭터 || 옛말투대응[프로필.말투] || "다정";
+}
+
+function 캐릭터설명보이기(칸id, 설명칸id){
+  const 자리 = document.getElementById(설명칸id);
+  if(!자리) return;
+  const 고른 = 선택값(칸id) || "다정";
+  // 캐릭터설명 은 talk.js(A) 것이라 없을 수도 있습니다 — 없으면 조용히 비웁니다
+  자리.textContent = (typeof 캐릭터설명 !== "undefined" && 캐릭터설명[고른]) || "";
 }
 function 금기칸그리기(){
   document.getElementById("금기칸").innerHTML = 금기후보.map(x =>
@@ -870,9 +940,12 @@ function 설문열기(){
     document.querySelectorAll('#금기칸 input').forEach(i=>{
       i.checked = p.못먹는것.includes(i.value) || (p.못먹는것.length===0 && i.value==="없음");
     });
-    document.querySelectorAll("#말투칸 button").forEach(b=>
-      b.classList.toggle("on", b.dataset.v === p.말투));
+    document.querySelectorAll("#캐릭터칸 button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v === 캐릭터고르기(p)));
+    document.querySelectorAll("#말투체칸 button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v === (p.말투체 || "반말")));
   }
+  캐릭터설명보이기("캐릭터칸", "캐릭터설명칸");
   목표칸맞추기();
   document.getElementById("판-설정").classList.add("hide");
   document.getElementById("판-설문").classList.remove("hide");
@@ -910,7 +983,8 @@ function 설문저장(){
     위치:document.getElementById("위치").value,
     위치이름:(document.getElementById("위치").value === 현재위치표시)
              ? (새위치이름 || (고치기 ? 상태.프로필.위치이름 : "") || "") : "",
-    말투:선택값("말투칸") || "엄마"
+    캐릭터:선택값("캐릭터칸") || "다정",
+    말투체:선택값("말투체칸") || "반말"
   };
   const 경고 = document.getElementById("설문경고");
   if(document.querySelectorAll('#금기칸 input:checked').length === 0){
@@ -968,8 +1042,11 @@ function 바뀐것안내(이전금기, p){
 }
 function 설정열기(){
   document.getElementById("키입력").value = 상태.키 || "";
-  document.querySelectorAll("#말투칸2 button").forEach(b=>
-    b.classList.toggle("on", b.dataset.v === (상태.프로필 && 상태.프로필.말투)));
+  document.querySelectorAll("#캐릭터칸2 button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v === 캐릭터고르기(상태.프로필)));
+  document.querySelectorAll("#말투체칸2 button").forEach(b=>
+    b.classList.toggle("on", b.dataset.v === ((상태.프로필 && 상태.프로필.말투체) || "반말")));
+  캐릭터설명보이기("캐릭터칸2", "캐릭터설명칸2");
   프로필요약그리기();
   위치칸그리기();
   연결상태그리기();
@@ -1022,6 +1099,7 @@ function 계약점검(){
   if(typeof 시스템지시문   !== "function") A.push("시스템지시문");
   if(typeof 규칙으로답하기 !== "function") A.push("규칙으로답하기");
   if(typeof 문장만들기     !== "function") A.push("문장만들기");
+  if(typeof 캐릭터문장     !== "function") A.push("캐릭터문장");
   if(typeof 답변형식       !== "object")   A.push("답변형식");
 
   if(typeof 음식표       === "undefined" || !Array.isArray(음식표))   C.push("음식표");
@@ -1052,9 +1130,16 @@ function 잔소리(){
   if(Array.isArray(금기후보) && !금기후보.includes("없음"))
     console.warn("점검 — data.js 의 금기후보에 \"없음\"이 없습니다. 못 먹는 게 없는 사람이 설문을 넘어갈 수 없습니다.");
   ["첫인사","기록","부족"].forEach(키 => {
-    if(!문장만들기("엄마", 키, {}))
+    if(!캐릭터문장({캐릭터:"다정", 말투체:"반말"}, 키, {}))
       console.warn("점검 — talk.js 의 문장틀에 \"" + 키 + "\" 문장이 없습니다. 그 자리가 빈칸으로 나옵니다.");
   });
+  if(typeof 캐릭터설명 === "undefined")
+    console.warn("점검 — talk.js 에 캐릭터설명이 없습니다. 설문에서 캐릭터 소개 글이 안 보입니다.");
+  else {
+    const 화면 = [...document.querySelectorAll("#캐릭터칸 button")].map(b=>b.dataset.v);
+    const 빠진 = Object.keys(캐릭터설명).filter(k => !화면.includes(k));
+    if(빠진.length) console.warn("점검 — talk.js 에는 있는데 설문에 없는 캐릭터: " + 빠진.join(", "));
+  }
   if(Array.isArray(식당표) && !식당표.some(m => (m.들어간것||[]).includes("땅콩")))
     console.warn("점검 — data.js 식당표에 땅콩이 든 메뉴가 없습니다. 발표 안전 시연을 보여줄 수 없습니다.");
   if(typeof 주변갱신 !== "function")
@@ -1071,8 +1156,11 @@ if(계약점검()){
   금기칸그리기();
   버튼묶음("성별칸");
   버튼묶음("목표타입칸", 목표칸맞추기);   // 목표를 바꾸면 아래 칸이 나타나거나 사라집니다
-  버튼묶음("말투칸");
-  버튼묶음("말투칸2", v=>{ if(상태.프로필){ 상태.프로필.말투=v; 저장(); } });
+  버튼묶음("캐릭터칸",  ()=> 캐릭터설명보이기("캐릭터칸", "캐릭터설명칸"));
+  버튼묶음("말투체칸");
+  버튼묶음("캐릭터칸2", v=>{ if(상태.프로필){ 상태.프로필.캐릭터=v; 저장(); }
+                            캐릭터설명보이기("캐릭터칸2", "캐릭터설명칸2"); });
+  버튼묶음("말투체칸2", v=>{ if(상태.프로필){ 상태.프로필.말투체=v; 저장(); } });
   if(상태.프로필){
     대화그리기(); 숫자갱신();
   } else {
