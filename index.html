@@ -5,82 +5,147 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>하루핏</title>
 <style>
-  :root{ --navy:#1F2A37; --accent:#149E9C; --gold:#C29A5B; --ink:#242A33;
-         --mut:#6b7280; --line:#e2e6ec; --bg:#f4f6f9; --card:#fff; --fill:#fbfdfd; }
+  /* ── 색과 글꼴 ──────────────────────────────────────────
+     여기 값만 바꾸면 앱 전체 색이 한 번에 바뀝니다.
+     따뜻한 크림 바탕 + 테라코타 포인트. 제목만 세리프를 씁니다. */
+  :root{
+    --bg:#F4F1EA;        /* 바탕 — 크림 */
+    --card:#FDFBF7;      /* 카드·헤더 — 아주 옅은 크림 */
+    --ink:#2E2A25;       /* 본문 글자 — 진한 갈색 */
+    --mut:#8A8175;       /* 흐린 글자 — 따뜻한 회색 */
+    --line:#E4DED2;      /* 선 — 모래빛 */
+    --fill:#F7F3EA;      /* 입력칸 안쪽 */
+    --accent:#C2703D;    /* 포인트 — 테라코타 */
+    --accent-d:#A85C2E;  /* 눌렀을 때 */
+    --accent-l:#F5E9DF;  /* 아주 옅은 테라코타 (카드 배경) */
+    --deep:#3E3831;      /* 내 말풍선 */
+    --soft:#EDE6D9;      /* 앱 말풍선 — 모래빛 */
+    /* 한글은 어디서나 같은 고딕 하나로 통일합니다.
+       숫자와 영문만 Georgia 를 씁니다 — Georgia 에는 한글 글자가 없어서
+       한글은 자동으로 뒤의 고딕으로 넘어갑니다. 그래서 맥·윈도우가 같아 보입니다.
+       (한글 명조는 맥은 AppleMyungjo, 윈도우는 바탕이라 서로 많이 다릅니다) */
+    --sans:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    --num:Georgia,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:var(--bg);
-       color:var(--ink);margin:0;line-height:1.6;font-size:15px;display:flex;flex-direction:column}
+  body{font-family:var(--sans);background:var(--bg);
+       color:var(--ink);margin:0;line-height:1.65;font-size:15px;display:flex;flex-direction:column;
+       -webkit-font-smoothing:antialiased}
   .app{max-width:460px;width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column;
-       background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+       background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line);
+       position:relative}
 
-  header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;
+  /* 사진을 끌어올 때 덮이는 안내 — 마우스 이벤트를 가로채지 않도록 pointer-events:none */
+  .놓는곳{position:absolute;inset:10px;z-index:5;pointer-events:none;
+       border:2px dashed var(--accent);border-radius:16px;background:rgba(245,233,223,.93);
+       display:flex;align-items:center;justify-content:center}
+  .놓는곳 div{font-family:var(--num);font-size:18px;color:var(--accent-d)}
+
+  header{padding:14px 18px 10px;display:flex;
          align-items:center;gap:10px;background:var(--card)}
-  header h1{font-size:17px;margin:0;flex:1}
-  header .num{font-size:12px;color:var(--mut);text-align:right;line-height:1.35}
-  header .num b{color:var(--navy);font-size:14px}
-  header button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:#fff;
-       border-radius:7px;padding:5px 9px;cursor:pointer;color:var(--mut)}
+  header h1{font-family:var(--num);font-size:21px;letter-spacing:-.2px;margin:0;flex:1;font-weight:400}
+  header button{font-family:inherit;font-size:12px;border:1px solid var(--line);background:transparent;
+       border-radius:20px;padding:6px 12px;cursor:pointer;color:var(--mut)}
+  header button:hover{border-color:var(--accent);color:var(--accent)}
 
-  #대화{flex:1;overflow-y:auto;padding:14px 14px 4px;display:flex;flex-direction:column;gap:9px}
-  .말{max-width:82%;padding:9px 13px;border-radius:14px;white-space:pre-wrap;word-break:break-word;font-size:14.5px}
-  .나{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
-  .앱{align-self:flex-start;background:#eef1f5;border-bottom-left-radius:4px}
-  .앱.경고{background:#fff4f2;border:1px solid #f0c9c1;color:#9a3412}
-  .생각중{align-self:flex-start;color:var(--mut);font-size:13px;padding:4px 6px}
+  /* 오늘 남은 양 — 네 가지를 한 줄에. 좁은 화면에서도 줄바꿈 없이 들어가도록
+     글자를 작게 잡고 사이를 가운뎃점으로 나눕니다. */
+  .영양띠{display:flex;align-items:baseline;justify-content:space-between;gap:4px;
+       padding:0 18px 12px;border-bottom:1px solid var(--line);background:var(--card);
+       font-size:11px;color:var(--mut);white-space:nowrap}
+  .영양띠 span{display:flex;align-items:baseline;gap:3px}
+  .영양띠 b{font-family:var(--num);font-weight:400;font-size:16px;color:var(--accent);letter-spacing:-.3px}
+  .영양띠 i{font-style:normal;font-size:10px;color:var(--mut)}
 
-  .채움{align-self:flex-start;max-width:92%;border:1px solid var(--accent);background:#f2fbfa;
-        border-radius:12px;padding:10px 12px;font-size:14px}
-  .채움 b{color:#0f766e}
+  #대화{flex:1;overflow-y:auto;padding:18px 16px 6px;display:flex;flex-direction:column;gap:11px}
+  .말{max-width:80%;padding:11px 15px;border-radius:16px;white-space:pre-wrap;word-break:break-word;
+      font-size:14.5px;line-height:1.6}
+  .나{align-self:flex-end;background:var(--deep);color:#F7F3EA;border-bottom-right-radius:5px}
+  .앱{align-self:flex-start;background:var(--soft);border-bottom-left-radius:5px}
+  .앱.경고{background:#FBEDE6;border:1px solid #E3BFA6;color:#8C4520}
+  .생각중{align-self:flex-start;color:var(--mut);font-size:13px;padding:4px 6px;font-style:italic}
+
+  .채움{align-self:flex-start;max-width:92%;border:1px solid #E0C7B2;background:var(--accent-l);
+        border-radius:14px;padding:13px 15px;font-size:14px}
+  .채움 b{font-family:var(--num);font-weight:400;font-size:15px;color:var(--accent-d)}
   .채움 button{display:block;width:100%;text-align:left;font-family:inherit;font-size:13.5px;
-        background:#fff;border:1px solid #bfe2de;border-radius:8px;padding:8px 10px;
-        margin-top:6px;cursor:pointer}
+        color:var(--ink);background:var(--card);border:1px solid #E5D3C2;border-radius:10px;
+        padding:10px 12px;margin-top:7px;cursor:pointer;line-height:1.5}
+  .채움 button:hover{border-color:var(--accent);background:#fff}
   /* 추천 묶음 — 우리가 아는 곳 / 근처 가게 를 나눠서 보여줍니다 */
-  .묶음{margin-top:9px}
-  .묶음제목{font-size:12px;font-weight:700;color:#0f766e;display:flex;align-items:center;gap:6px}
-  .묶음제목 span{font-weight:400;color:var(--mut);font-size:11.5px}
-  .묶음.모름 .묶음제목{color:#92400e}
-  .묶음.모름 button{border-color:#f0dcb8}
-  .주의{font-size:11.5px;color:#92400e;margin-top:5px;line-height:1.5}
-  .메뉴링크{font-size:11.5px;color:#0f766e;text-decoration:underline;margin-left:6px}
-  .찾는중{font-size:12px;color:var(--mut);margin-top:8px}
+  .묶음{margin-top:11px}
+  .묶음제목{font-size:11.5px;font-weight:700;letter-spacing:.3px;color:var(--accent-d);
+        display:flex;align-items:center;gap:6px}
+  .묶음제목 span{font-weight:400;color:var(--mut);font-size:11px;letter-spacing:0}
+  .묶음.모름 .묶음제목{color:#8A7A5C}
+  .묶음.모름 button{border-color:#DFD5C0;background:#FAF6EC}
+  .주의{font-size:11.5px;color:#8A7A5C;margin-top:7px;line-height:1.55}
+  .메뉴링크{font-size:11.5px;color:var(--accent-d);text-decoration:underline;margin-right:8px}
+  .찾는중{font-size:12px;color:var(--mut);margin-top:9px;font-style:italic}
 
-  .입력칸{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:var(--card);
+  .입력칸{border-top:1px solid var(--line);padding:11px 13px;display:flex;gap:8px;background:var(--card);
         align-items:center}
-  .입력칸 input[type=text]{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--fill);
-        padding:10px 15px;font-family:inherit;font-size:15px;min-width:0}
-  .사진버튼{border:1px solid var(--line);background:#fff;border-radius:20px;padding:9px 12px;
-        font-size:17px;cursor:pointer;line-height:1;flex:none}
-  .사진버튼:disabled{opacity:.4;cursor:default}
-  .말 img{display:block;max-width:100%;max-height:240px;border-radius:10px;margin-bottom:6px}
-  .입력칸 button{border:none;background:var(--accent);color:#fff;border-radius:20px;
-        padding:10px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
-  .입력칸 button:disabled{background:#c7d0d6;cursor:default}
+  .입력칸 input[type=text]{flex:1;border:1px solid var(--line);border-radius:22px;background:var(--fill);
+        padding:11px 16px;font-family:inherit;font-size:15px;min-width:0;color:var(--ink)}
+  .입력칸 input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .입력칸 input[type=text]::placeholder{color:#B3A896}
+  /* 사진은 보조 동작 — 보내기만 진한 색으로 두어 주 동작을 하나로 만듭니다.
+     아래 ".입력칸 button" 규칙보다 우선하도록 선택자를 겹쳐 씁니다. */
+  .입력칸 button.사진버튼{border:1px solid var(--line);background:var(--fill);border-radius:22px;
+        padding:10px 13px;font-size:17px;cursor:pointer;line-height:1;flex:none;color:var(--ink)}
+  .입력칸 button.사진버튼:hover{border-color:var(--accent);background:var(--accent-l)}
+  .입력칸 button.사진버튼:disabled{opacity:.35;cursor:default;background:var(--fill)}
+  .말 img{display:block;max-width:100%;max-height:240px;border-radius:11px;margin-bottom:7px}
+  .입력칸 button{border:none;background:var(--accent);color:#FDFBF7;border-radius:22px;
+        padding:11px 19px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .입력칸 button:hover{background:var(--accent-d)}
+  .입력칸 button:disabled{background:#CFC5B6;cursor:default}
 
-  .foot{font-size:11px;color:var(--mut);text-align:center;padding:6px 12px 10px;background:var(--card)}
+  .foot{font-size:11px;color:var(--mut);text-align:center;padding:8px 12px 12px;background:var(--card);
+        letter-spacing:.2px}
 
-  .판{position:fixed;inset:0;background:rgba(31,42,55,.45);display:flex;align-items:center;
+  .판{position:fixed;inset:0;background:rgba(46,42,37,.42);display:flex;align-items:center;
       justify-content:center;padding:16px;z-index:10}
-  .판 .속{background:#fff;border-radius:14px;padding:18px 20px 20px;max-width:420px;width:100%;
-      max-height:88vh;overflow-y:auto}
-  .판 h2{font-size:16px;margin:0 0 10px}
-  label{display:block;font-weight:700;font-size:13px;margin:10px 0 3px}
+  .판 .속{background:var(--card);border-radius:16px;padding:20px 20px 0;max-width:420px;width:100%;
+      max-height:90vh;overflow-y:auto;border:1px solid var(--line)}
+  /* 설문이 길어도 [시작하기]가 늘 보이도록 아래에 붙여둡니다 */
+  .바닥{position:sticky;bottom:0;background:var(--card);padding-bottom:20px;
+      box-shadow:0 -10px 14px -10px rgba(46,42,37,.18)}
+  .판 h2{font-family:var(--num);font-weight:400;font-size:20px;margin:0 0 12px;letter-spacing:-.2px}
+  label{display:block;font-weight:700;font-size:12px;letter-spacing:.3px;color:var(--mut);
+      margin:12px 0 4px;text-transform:none}
   input[type=text],input[type=number],input[type=password]{width:100%;border:1px solid var(--line);
-      border-radius:8px;background:var(--fill);padding:9px 11px;font-family:inherit;font-size:15px}
-  .row{display:flex;gap:9px}.row>*{flex:1}
-  .btns{display:flex;gap:7px;margin-top:4px}
+      border-radius:10px;background:var(--fill);padding:9px 12px;font-family:inherit;font-size:15px;
+      color:var(--ink)}
+  input[type=text]:focus,input[type=number]:focus,input[type=password]:focus{
+      outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  .btns{display:flex;gap:8px;margin-top:5px}
+  .btns.감싸기{flex-wrap:wrap}
+  .btns.감싸기 button{flex:1 1 calc(50% - 4px);min-width:0}
   .btns button{flex:1;font-family:inherit;font-size:14px;border:1px solid var(--line);
-      background:#fff;border-radius:9px;padding:9px 4px;cursor:pointer;color:var(--ink)}
-  .btns button.on{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+      background:var(--card);border-radius:10px;padding:10px 4px;cursor:pointer;color:var(--ink)}
+  .btns button:hover{border-color:var(--accent)}
+  .btns button.on{background:var(--accent);color:#FDFBF7;border-color:var(--accent);font-weight:700}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
   .chips label{display:inline-flex;align-items:center;gap:5px;font-weight:400;font-size:13.5px;
-      border:1px solid var(--line);border-radius:20px;padding:5px 11px;margin:0;cursor:pointer;background:#fff}
-  .chips input{margin:0}
-  .go{width:100%;font-family:inherit;font-size:15px;font-weight:700;border:none;border-radius:10px;
-      padding:12px;cursor:pointer;background:var(--accent);color:#fff;margin-top:14px}
-  .경고상자{background:#fff4f2;border:1px solid #f0c9c1;color:#9a3412;border-radius:9px;
-      padding:10px 12px;margin-top:9px;font-size:13.5px}
-  .안내{font-size:12.5px;color:var(--mut);margin-top:4px;line-height:1.5}
+      letter-spacing:0;color:var(--ink);border:1px solid var(--line);border-radius:20px;
+      padding:5px 11px;margin:0;cursor:pointer;background:var(--card);text-transform:none}
+  .chips label:hover{border-color:var(--accent)}
+  .chips input{margin:0;accent-color:var(--accent)}
+  .go{width:100%;font-family:inherit;font-size:15px;font-weight:700;border:none;border-radius:11px;
+      padding:13px;cursor:pointer;background:var(--accent);color:#FDFBF7;margin-top:14px}
+  .go:hover{background:var(--accent-d)}
+  /* 보조 동작 — 진한 색은 화면당 하나만 두어야 어디를 눌러야 할지 헷갈리지 않습니다 */
+  .go.보조{background:var(--fill);color:var(--ink);border:1px solid var(--line);font-weight:400}
+  .go.보조:hover{background:var(--accent-l);border-color:var(--accent)}
+  .go.위험{background:#FBEDE6;color:#8C4520;border:1px solid #E3BFA6;font-weight:400}
+  .go.위험:hover{background:#F6E0D4}
+  .경고상자{background:#FBEDE6;border:1px solid #E3BFA6;color:#8C4520;border-radius:10px;
+      padding:11px 13px;margin-top:10px;font-size:13.5px;line-height:1.6}
+  .안내{font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.6}
+  .점검안내{background:#FBEDE6;border:1px solid #E3BFA6;border-radius:10px;padding:13px;line-height:1.65}
   .hide{display:none}
 </style>
 </head>
@@ -88,9 +153,15 @@
 <div class="app">
   <header>
     <h1>하루핏</h1>
-    <div class="num">남은 <b id="남은칼로리">-</b> kcal<br>단백질 <b id="남은단백질">-</b> g</div>
     <button onclick="설정열기()">설정</button>
   </header>
+  <!-- 오늘 남은 양 — 한 줄에 네 가지 -->
+  <div class="영양띠">
+    <span>남은 <b id="남은칼로리">-</b><i>kcal</i></span>
+    <span>단백질 <b id="남은단백질">-</b><i>g</i></span>
+    <span>탄수 <b id="남은탄수">-</b><i>g</i></span>
+    <span>지방 <b id="남은지방">-</b><i>g</i></span>
+  </div>
 
   <div id="대화"></div>
 
@@ -106,6 +177,9 @@
   <div class="foot">
     모든 숫자는 <b>대략</b>입니다 · <b>의료 조언이 아닙니다</b>
   </div>
+
+  <!-- 사진을 끌어올 때만 잠깐 나타납니다 -->
+  <div class="놓는곳 hide" id="놓는곳"><div>여기에 놓으면 사진을 읽어요</div></div>
 </div>
 
 
@@ -113,13 +187,35 @@
 <div class="판 hide" id="판-설문"><div class="속">
   <h2 id="설문제목">처음 한 번만 적어주세요</h2>
   <div class="row">
+    <div>
+      <label>성별</label>
+      <div class="btns" id="성별칸">
+        <button data-v="남" class="on">남</button><button data-v="여">여</button>
+      </div>
+    </div>
+    <div><label>나이</label><input type="number" id="나이" value="30"></div>
+  </div>
+  <div class="row">
     <div><label>키 (cm)</label><input type="number" id="키" value="175"></div>
     <div><label>지금 몸무게 (kg)</label><input type="number" id="현재체중" value="78"></div>
   </div>
-  <div class="row">
-    <div><label>목표 몸무게 (kg)</label><input type="number" id="목표체중" value="70"></div>
-    <div><label>몇 주 안에</label><input type="number" id="기간주" value="12"></div>
+
+  <label>목표</label>
+  <div class="btns 감싸기" id="목표타입칸">
+    <button data-v="체중 감량" class="on">체중 감량</button>
+    <button data-v="근력 향상">근력 향상</button>
+    <button data-v="체중 유지">체중 유지</button>
+    <button data-v="체중 증량">체중 증량</button>
   </div>
+
+  <!-- 감량·증량을 골랐을 때만 나옵니다 -->
+  <div id="몸무게목표칸">
+    <div class="row">
+      <div><label>목표 몸무게 (kg)</label><input type="number" id="목표체중" value="70"></div>
+      <div><label>몇 주 안에</label><input type="number" id="기간주" value="12"></div>
+    </div>
+  </div>
+
   <label>못 먹는 것 · 다친 곳</label>
   <div class="chips" id="금기칸"></div>
   <div class="안내">없으면 [없음]을 눌러야 넘어갑니다.</div>
@@ -136,10 +232,12 @@
     <button data-v="엄마" class="on">엄마</button>
     <button data-v="스파르타">스파르타</button>
   </div>
-  <button class="go" id="설문버튼" onclick="설문저장()">시작하기</button>
-  <button class="go hide" id="설문취소" style="background:#eef1f5;color:#374151"
-          onclick="설문닫기()">그만두기</button>
-  <div id="설문경고"></div>
+  <!-- 설문이 길어서 아래에 붙여둡니다. 스크롤해도 항상 보입니다. -->
+  <div class="바닥">
+    <div id="설문경고"></div>
+    <button class="go" id="설문버튼" onclick="설문저장()">시작하기</button>
+    <button class="go 보조 hide" id="설문취소" onclick="설문닫기()">그만두기</button>
+  </div>
 </div></div>
 
 
@@ -154,8 +252,7 @@
   <div class="안내">바꾸면 다음 답변부터 말투가 바뀝니다. 기록은 그대로 남습니다.</div>
 
   <label>내 정보</label>
-  <button class="go" style="background:#eef1f5;color:#374151;margin-top:2px"
-          onclick="설문열기()">목표 몸무게 · 못 먹는 것 · 위치 고치기</button>
+  <button class="go 보조" style="margin-top:4px" onclick="설문열기()">목표 몸무게 · 못 먹는 것 · 위치 고치기</button>
   <div class="안내" id="프로필요약"></div>
 
   <label>AI 연결 (Claude API 키)</label>
@@ -163,13 +260,15 @@
   <div class="안내">
     <b>안 넣어도 앱은 돌아갑니다.</b> 넣으면 대화가 훨씬 자연스러워집니다.<br>
     키는 이 브라우저에만 저장되고 어디로도 전송되지 않습니다.<br>
-    <b style="color:#9a3412">주의</b> — 발표·공유용 화면에서는 키를 지우세요.
+    <b style="color:#8C4520">주의</b> — 발표·공유용 화면에서는 키를 지우세요.
   </div>
   <div id="연결상태" class="안내"></div>
 
-  <button class="go" style="background:#eef1f5;color:#374151" onclick="설정닫기()">닫기</button>
-  <button class="go" style="background:#eef1f5;color:#374151" onclick="오늘초기화()">오늘 대화 지우기</button>
-  <button class="go" style="background:#fee2e2;color:#991b1b" onclick="전체초기화()">전부 지우고 처음부터</button>
+  <div class="바닥">
+    <button class="go" onclick="설정닫기()">닫기</button>
+    <button class="go 보조" onclick="오늘초기화()">오늘 대화 지우기</button>
+    <button class="go 위험" onclick="전체초기화()">전부 지우고 처음부터</button>
+  </div>
 </div></div>
 
 
@@ -189,20 +288,8 @@
      4. 화면에 표시 + 기록 반영
    ═══════════════════════════════════════════════════════════ */
 
-/* ═══ 카카오 지도 키 ═══════════════════════════════════════
-   아래 따옴표 안에 카카오 JavaScript 키를 붙여넣으세요. 이 줄만 고치면 됩니다.
-
-     developers.kakao.com → 내 애플리케이션 → 앱 키 → JavaScript 키
-
-   ★ 반드시 [플랫폼 → Web] 에 아래 두 주소를 등록하세요.
-     등록해야만 우리 사이트에서만 동작합니다. 이게 유일한 보호 장치입니다.
-       https://jollyybeeeee-max.github.io
-       http://localhost:8777
-
-   비워두면 "근처 가게" 기능만 빠지고 앱은 그대로 돌아갑니다.
-   ※ 이 키는 공개돼도 되는 키입니다. Anthropic 키는 절대 여기 넣지 마세요. */
-const 카카오키 = "여기에_카카오_JavaScript_키_붙여넣기";
-
+/* 카카오 지도 키는 data.js(C 담당)에 있습니다. 이 파일에서는 읽기만 합니다.
+   없어도 앱은 그대로 돌아갑니다 — "근처 가게" 기능만 빠집니다. */
 const 저장키 = "harufit-v2";
 let 상태 = { 프로필:null, 키:"", 오늘:{ 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] } };
 let 보내는중 = false;
@@ -270,199 +357,119 @@ function 내사진(미리보기, 글){
   저장();
 }
 
+/* ── 탄수화물 · 지방 ────────────────────────────────────
+   음식표에도 기준값계산에도 탄수·지방이 없습니다. 그래서 칼로리와 단백질에서
+   되짚어 계산합니다.
+
+     칼로리 = 탄수×4 + 단백질×4 + 지방×9
+
+   단백질이 쓴 칼로리를 빼고 남은 칼로리를, 탄수:지방 = 6:4 로 나눕니다.
+   영양 계산에서 흔히 쓰는 비율이고, 이 앱의 숫자는 모두 대략값입니다.
+   ★ AI 가 직접 알려준 값이 있으면 그쪽을 먼저 씁니다(아래 답받기 참고).
+   ★ 나중에 C 가 음식표에 탄수화물·지방을 넣으면 그 값이 우선 쓰입니다. */
+function 영양추정(kcal, 단백질){
+  const 남은 = Math.max(0, (kcal || 0) - (단백질 || 0) * 4);
+  return { 탄수화물: Math.round(남은 * 0.6 / 4), 지방: Math.round(남은 * 0.4 / 9) };
+}
+/* 기록 한 줄에 탄수·지방을 채워 넣습니다. 이미 있으면 그대로 둡니다. */
+function 영양채우기(끼니){
+  const 추정 = 영양추정(끼니.kcal, 끼니.단백질);
+  return {
+    이름: 끼니.이름, kcal: 끼니.kcal || 0, 단백질: 끼니.단백질 || 0,
+    탄수화물: (끼니.탄수화물 != null) ? 끼니.탄수화물 : 추정.탄수화물,
+    지방:     (끼니.지방     != null) ? 끼니.지방     : 추정.지방
+  };
+}
+
 function 숫자갱신(){
   if(!상태.프로필) return;
   const 기준 = 기준값계산(상태.프로필);                       // ← data.js
-  const 먹은kcal = 상태.오늘.기록.reduce((a,b)=>a+b.kcal,0);
-  const 먹은단백질 = 상태.오늘.기록.reduce((a,b)=>a+b.단백질,0);
-  document.getElementById("남은칼로리").textContent = 기준.목표kcal - 먹은kcal;
-  document.getElementById("남은단백질").textContent = 기준.목표단백질 - 먹은단백질;
-}
+  const 합 = 항목 => 상태.오늘.기록.reduce((a,b)=>a+(b[항목]||0),0);
 
+  const 목표탄수지방 = 영양추정(기준.목표kcal, 기준.목표단백질);
+  const 남은 = {
+    남은칼로리: 기준.목표kcal      - 합("kcal"),
+    남은단백질: 기준.목표단백질    - 합("단백질"),
+    남은탄수:   목표탄수지방.탄수화물 - 합("탄수화물"),
+    남은지방:   목표탄수지방.지방     - 합("지방")
+  };
+  for(const id in 남은){
+    const v = 남은[id];
+    document.getElementById(id).textContent = Number.isFinite(v) ? Math.round(v) : "-";
+  }
+}
 /* ── 위치 ──────────────────────────────────────────────
-   두 가지 방법이 있습니다.
-     주소 입력 : 지금까지 쓰던 방식. 식당표의 고정 거리를 씁니다.
-     현재 위치 : GPS. 카카오로 진짜 근처 가게를 찾아옵니다.
-   GPS 는 [현재 위치 쓰기] 를 눌렀을 때만 씁니다. 몰래 읽지 않습니다. */
-function 현재위치받기(){
-  return new Promise((성공, 실패) => {
-    if(!navigator.geolocation) return 실패(new Error("이 브라우저는 위치 기능이 없습니다"));
-    navigator.geolocation.getCurrentPosition(
-      p => 성공({ 위도:p.coords.latitude, 경도:p.coords.longitude }),
-      e => 실패(new Error(e.code === 1 ? "위치 권한이 거부됐습니다" : "위치를 받지 못했습니다")),
-      { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
-    );
-  });
+   주소를 적거나, [현재 위치]를 누르면 "현재위치" 로 저장합니다.
+   실제 좌표 변환과 카카오 검색은 모두 data.js(C 담당)가 합니다.
+   여기서는 어느 쪽을 쓸지만 정합니다. */
+const 현재위치표시 = "현재위치";
+function 현재위치쓰기(){
+  document.getElementById("위치").value = 현재위치표시;
+  document.getElementById("위치안내").innerHTML =
+    '<b style="color:#A85C2E">현재 위치를 쓰겠습니다.</b> ' +
+    '저장하면 지금 있는 곳 근처 가게를 찾아옵니다. (권한을 한 번 물어봅니다)';
 }
 
-let 새좌표 = undefined;   // undefined = 안 누름 · null = 실패 · {} = 성공
-async function 현재위치쓰기(){
-  const 안내 = document.getElementById("위치안내");
-  안내.textContent = "위치를 확인하는 중…";
-  try{
-    새좌표 = await 현재위치받기();
-    안내.innerHTML = '<b style="color:#0f766e">현재 위치를 쓰겠습니다.</b> ' +
-                     '근처 가게를 실제 거리로 찾아줍니다.';
-  }catch(e){
-    새좌표 = null;
-    안내.innerHTML = '<b style="color:#9a3412">' + e.message + '</b><br>' +
-                     '괜찮습니다. 위에 적어주신 주소로 씁니다.';
-  }
+/* ── 주변 가게 새로 찾기 ── data.js 의 주변갱신()을 부릅니다.
+   식당표를 그 동네 것으로 갈아 끼웁니다. 실패하면 아무 일도 안 일어납니다 —
+   강남역 기준 목록이 그대로 남습니다. C 가 없는 버전이어도 안 깨지도록 감쌉니다. */
+function 주변찾아보기(위치글){
+  if(typeof 주변갱신 !== "function") return;          // ← data.js 에 아직 없으면 조용히 넘어감
+  Promise.resolve(주변갱신(위치글))
+    .then(결과 => {
+      if(결과 && 결과.바뀜) console.info("주변 가게 " + 결과.곳 + "곳으로 갱신했습니다.");
+      else if(결과) console.info("주변 갱신 안 함 —", 결과.까닭);
+    })
+    .catch(e => console.warn("주변 갱신 실패 —", e.message));
 }
 
-/* ── 카카오 지도 불러오기 ── 키가 있을 때만, 딱 한 번만 ── */
-let 카카오준비 = null;
-function 카카오불러오기(){
-  if(카카오준비) return 카카오준비;
-  if(!카카오키 || 카카오키.indexOf("여기에") === 0){
-    카카오준비 = Promise.reject(new Error("카카오 키가 아직 없습니다"));
-    return 카카오준비;
-  }
-  카카오준비 = new Promise((성공, 실패) => {
-    const s = document.createElement("script");
-    s.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + 카카오키 +
-            "&libraries=services&autoload=false";
-    s.onload  = () => kakao.maps.load(() => 성공(true));
-    s.onerror = () => 실패(new Error("카카오 지도를 못 불러왔습니다 — 도메인 등록을 확인하세요"));
-    document.head.appendChild(s);
-  });
-  return 카카오준비;
-}
-
-/* 내 좌표 기준 반경 안의 음식점을 가져옵니다. FD6 = 음식점 */
-async function 근처가게찾기(좌표, 반경){
-  await 카카오불러오기();
-  const ps = new kakao.maps.services.Places();
-  return new Promise((성공, 실패) => {
-    ps.categorySearch("FD6", (결과, 코드) => {
-      if(코드 === kakao.maps.services.Status.OK) 성공(결과);
-      else if(코드 === kakao.maps.services.Status.ZERO_RESULT) 성공([]);
-      else 실패(new Error("카카오 검색에 실패했습니다"));
-    }, {
-      location: new kakao.maps.LatLng(좌표.위도, 좌표.경도),
-      radius: 반경,
-      sort: kakao.maps.services.SortBy.DISTANCE
-    });
-  });
-}
 
 /* ── 부족분 채우기 카드 ──────────────────────────────────
-   두 묶음으로 나눠서 보여줍니다. 이게 이 앱의 핵심 원칙입니다.
-
-     우리가 아는 곳 : C가 재료를 적어둔 목록. 안전검사로 걸러냅니다.
-     근처 가게      : 카카오에서 온 진짜 가게. 재료를 모르므로 거르지 않고,
-                      모른다고 화면에 적습니다.
-
-   모르는 걸 아는 척하지 않습니다. */
+   식당표는 C 가 관리합니다. 설문을 저장하면 그 동네 가게로 바뀌고,
+   못 찾으면 기본 목록(강남역)이 남습니다. 어느 쪽이든 재료가 적혀 있고,
+   안전검사를 통과한 것만 보여줍니다 — 모르면 추천하지 않습니다. */
 function 채움카드(){
   const 기준 = 기준값계산(상태.프로필);
-  const 남은단백질 = 기준.목표단백질 - 상태.오늘.기록.reduce((a,b)=>a+b.단백질,0);
+  const 남은단백질 = 기준.목표단백질 - 상태.오늘.기록.reduce((a,b)=>a+(b.단백질||0),0);
   if(남은단백질 <= 15 || 상태.오늘.기록.length === 0) return;
 
   const 통과 = 안전검사(식당표, 상태.프로필.못먹는것)           // ← talk.js + data.js
                .filter(m => m.거리 <= 500)
                .sort((a,b)=>b.단백질-a.단백질)
                .slice(0,3);
-
-  const 좌표 = 상태.프로필.좌표;
-  if(!통과.length && !좌표) return;
+  if(!통과.length) return;
 
   const d = document.createElement("div");
   d.className = "채움";
-  d.innerHTML = "<b>" + 문장만들기(상태.프로필.말투,"부족",{g:남은단백질}) + "</b> " +
-                (좌표 ? "지금 있는 곳" : 상태.프로필.위치) + " 기준 500m 안이야.";
-
-  if(통과.length){
-    const 묶음 = document.createElement("div");
-    묶음.className = "묶음 아는곳";
-    묶음.innerHTML = '<div class="묶음제목">우리가 아는 곳 <span>재료까지 확인함</span></div>' +
-      통과.map(m => '<button onclick="메뉴탭(\''+m.메뉴+'\')">'+
-        m.가게+' · '+m.메뉴+' — '+m.거리+'m · 단백질 '+m.단백질+'g</button>').join("");
-    d.appendChild(묶음);
-  }
-
+  d.innerHTML =
+    "<b>" + 문장만들기(상태.프로필.말투,"부족",{g:남은단백질}) + "</b> " +
+    상태.프로필.위치 + " 기준 500m 안이야." +
+    '<div class="묶음 아는곳">' +
+    통과.map(m => {
+      const 지도 = (typeof 지도링크 === "function") ? 지도링크(m.메뉴) : (m.지도 || null);
+      return '<button onclick="메뉴탭(\'' + m.메뉴 + '\')">' +
+             m.가게 + ' · ' + m.메뉴 + ' — ' + m.거리 + 'm · 단백질 ' + m.단백질 + 'g</button>' +
+             (지도 ? '<a class="메뉴링크" href="' + 지도 + '" target="_blank" rel="noopener">' +
+                     m.가게 + ' 지도 보기</a>' : '');
+    }).join("") +
+    '</div>';
   document.getElementById("대화").appendChild(d);
   아래로();
-
-  if(좌표) 근처가게붙이기(d, 좌표);
-}
-
-/* 카카오 결과를 카드에 덧붙입니다. 실패해도 위 카드는 그대로 남습니다. */
-async function 근처가게붙이기(카드, 좌표){
-  const 기다림 = document.createElement("div");
-  기다림.className = "찾는중";
-  기다림.textContent = "근처 가게를 찾는 중…";
-  카드.appendChild(기다림);
-  아래로();
-
-  let 가게들;
-  try{
-    가게들 = await 근처가게찾기(좌표, 500);
-  }catch(e){
-    console.warn("근처 가게를 못 가져왔습니다 —", e.message);
-    기다림.remove();
-    return;                    // 조용히 접습니다. 우리 목록은 이미 떠 있습니다.
-  }
-  기다림.remove();
-  if(!가게들.length) return;
-
-  /* 가게 이름·업종에서 아는 음식을 찾아봅니다.
-     찾으면 진짜 숫자를, 못 찾으면 대략값을 씁니다.
-       칼로리는 틀려도 숫자가 어긋날 뿐이지만,
-       재료는 모르면 위험하므로 아래에 "모른다"고 적습니다. */
-  const 목록 = 가게들.slice(0, 4).map(g => {
-    const 아는음식 = 음식찾기(g.place_name + " " + g.category_name);   // ← data.js
-    return {
-      이름: g.place_name,
-      거리: Number(g.distance) || 0,
-      업종: (g.category_name || "").split(">").pop().trim(),
-      링크: g.place_url,
-      kcal: 아는음식 ? 아는음식.kcal : 400,
-      단백질: 아는음식 ? 아는음식.단백질 : 12,
-      앎: !!아는음식,
-      기준메뉴: 아는음식 ? 아는음식.이름 : null
-    };
-  }).sort((a,b) => (b.앎 - a.앎) || (a.거리 - b.거리));
-
-  const 묶음 = document.createElement("div");
-  묶음.className = "묶음 모름";
-  묶음.innerHTML =
-    '<div class="묶음제목">근처 가게 <span>카카오맵 · 재료 정보 없음</span></div>' +
-    목록.map(m =>
-      '<button onclick="근처탭(this)" data-kcal="' + m.kcal + '" data-단백질="' + m.단백질 +
-      '" data-이름="' + m.이름.replace(/"/g, "") + '">' +
-      m.이름 + ' · ' + m.거리 + 'm · ' + m.업종 + '<br>' +
-      (m.앎 ? m.기준메뉴 + ' 기준 대략 ' + m.kcal + 'kcal · 단백질 ' + m.단백질 + 'g'
-            : '칼로리 정보 없음 — 대략 ' + m.kcal + 'kcal로 잡음') +
-      '</button>').join("") +
-    '<div class="주의">가게마다 재료가 달라. 못 먹는 게 있으면 주문할 때 꼭 물어봐.</div>' +
-    목록.filter(m => m.링크).map(m =>
-      '<a class="메뉴링크" href="' + m.링크 + '" target="_blank" rel="noopener">' +
-      m.이름 + ' 메뉴 보기</a>').join(" ");
-
-  카드.appendChild(묶음);
-  아래로();
-}
-
-/* 근처 가게를 눌렀을 때 — 그 자리에서 기록합니다 */
-function 근처탭(버튼){
-  const 이름 = 버튼.getAttribute("data-이름");
-  const kcal = +버튼.getAttribute("data-kcal");
-  const 단백질 = +버튼.getAttribute("data-단백질");
-  상태.오늘.기록.push({ 이름, kcal, 단백질 });
-  저장(); 숫자갱신();
-  앱말(문장만들기(상태.프로필.말투, "기록", {메뉴:이름, kcal:kcal}));
 }
 
 /* ── 사진 ──────────────────────────────────────────────
    사진은 AI가 있어야 알아볼 수 있습니다. 규칙만으로는 그림을 읽을 수 없습니다.
    보내기 전에 크기를 줄입니다 — 원본 사진은 3~5MB라 느리고 비쌉니다. */
-function 사진고르기(){
-  if(!상태.프로필) return;
+function 사진쓸수있나(){
+  if(!상태.프로필) return false;
   if(!상태.키){
     앱말("사진은 AI 연결이 있어야 알아볼 수 있어.\n설정에서 키를 넣거나, 먹은 걸 글로 적어줘.", true);
-    return;
+    return false;
   }
+  return true;
+}
+function 사진고르기(){
+  if(!사진쓸수있나()) return;
   document.getElementById("사진칸").click();
 }
 
@@ -489,10 +496,15 @@ function 사진줄이기(파일, 최대){
   });
 }
 
-async function 사진골랐다(칸){
-  const 파일 = 칸.files && 칸.files[0];
-  칸.value = "";                       // 같은 사진을 다시 고를 수 있게
+/* 사진을 어떻게 가져왔든(버튼·드래그·붙여넣기) 여기로 모입니다 */
+async function 사진처리(파일){
   if(!파일 || 보내는중) return;
+  if(!파일.type || !파일.type.startsWith("image/")){
+    앱말("사진 파일만 알아볼 수 있어. 먹은 걸 글로 적어줘도 돼.", true);
+    return;
+  }
+  if(!사진쓸수있나()) return;
+
   let 사진;
   try{
     사진 = await 사진줄이기(파일, 1024);
@@ -505,6 +517,48 @@ async function 사진골랐다(칸){
   입력.value = "";
   내사진(사진.미리보기, 글);
   await 답받기(글 || "이 사진에 있는 음식을 알려줘.", 사진.base64);
+}
+
+function 사진골랐다(칸){
+  const 파일 = 칸.files && 칸.files[0];
+  칸.value = "";                       // 같은 사진을 다시 고를 수 있게
+  사진처리(파일);
+}
+
+/* ── 드래그해서 놓기 · 붙여넣기 ────────────────────────
+   컴퓨터에서는 사진을 창에 끌어다 놓거나 Ctrl/Cmd+V 로 붙여넣을 수 있습니다.
+   버튼을 찾지 않아도 되니 훨씬 빠릅니다. */
+function 사진받는법붙이기(){
+  const 앱 = document.querySelector(".app");
+  const 덮개 = document.getElementById("놓는곳");
+  let 깊이 = 0;                          // 자식 위로 지나가도 깜빡이지 않게 셉니다
+
+  const 사진끄는중 = ev =>
+    ev.dataTransfer && [...ev.dataTransfer.types].includes("Files");
+
+  앱.addEventListener("dragenter", ev => {
+    if(!사진끄는중(ev)) return;
+    ev.preventDefault(); 깊이++; 덮개.classList.remove("hide");
+  });
+  앱.addEventListener("dragover", ev => { if(사진끄는중(ev)) ev.preventDefault(); });
+  앱.addEventListener("dragleave", () => { if(--깊이 <= 0){ 깊이 = 0; 덮개.classList.add("hide"); } });
+  앱.addEventListener("drop", ev => {
+    if(!사진끄는중(ev)) return;
+    ev.preventDefault(); 깊이 = 0; 덮개.classList.add("hide");
+    사진처리(ev.dataTransfer.files && ev.dataTransfer.files[0]);
+  });
+
+  document.addEventListener("paste", ev => {
+    const 것들 = ev.clipboardData && ev.clipboardData.items;
+    if(!것들) return;
+    for(const 것 of 것들){
+      if(것.type && 것.type.startsWith("image/")){
+        ev.preventDefault();
+        사진처리(것.getAsFile());
+        return;
+      }
+    }
+  });
 }
 
 /* ── 한 줄 보내기 ── */
@@ -555,7 +609,7 @@ async function 답받기(글, 사진){
   if(결과.컨디션) 상태.오늘.컨디션 = 결과.컨디션;
   if(결과.일정)   상태.오늘.일정   = 결과.일정;
   (결과.음식 || []).forEach(m => {
-    상태.오늘.기록.push({ 이름:m.이름, kcal:m.kcal, 단백질:m.단백질 });
+    상태.오늘.기록.push(영양채우기(m));   // AI 가 탄수·지방을 줬으면 그 값을 그대로 씁니다
   });
   저장(); 숫자갱신();
   if(결과.종류 === "음식") 채움카드();
@@ -629,7 +683,8 @@ async function AI에게물어보기(글, 사진){
 function 메뉴탭(메뉴){
   const m = 식당표.find(x => x.메뉴 === 메뉴);
   if(!m) return;
-  상태.오늘.기록.push({ 이름:메뉴, kcal:m.kcal, 단백질:m.단백질 });
+  상태.오늘.기록.push(영양채우기({ 이름:메뉴, kcal:m.kcal, 단백질:m.단백질,
+                                    탄수화물:m.탄수화물, 지방:m.지방 }));
   저장(); 숫자갱신();
   앱말(문장만들기(상태.프로필.말투, "기록", {메뉴:메뉴, kcal:m.kcal}));
 }
@@ -653,6 +708,14 @@ function 금기칸그리기(){
   document.getElementById("금기칸").innerHTML = 금기후보.map(x =>
     '<label><input type="checkbox" value="'+x+'">'+x+'</label>').join("");
 }
+
+/* 목표 몸무게·기간은 감량·증량일 때만 물어봅니다.
+   근력 향상이나 유지는 몸무게 목표가 없는 게 자연스럽습니다. */
+const 몸무게목표필요 = 타입 => 타입 === "체중 감량" || 타입 === "체중 증량";
+function 목표칸맞추기(){
+  const 타입 = 선택값("목표타입칸") || "체중 감량";
+  document.getElementById("몸무게목표칸").classList.toggle("hide", !몸무게목표필요(타입));
+}
 /* 설문 판 열기 —
    처음이면 빈 화면, 나중에 고칠 때는 지금 값을 채워서 엽니다. */
 function 설문열기(){
@@ -662,26 +725,31 @@ function 설문열기(){
   document.getElementById("설문취소").classList.toggle("hide", !고치기);
   document.getElementById("설문경고").innerHTML = "";
 
-  새좌표 = undefined;                       // 이번에 버튼을 눌렀는지만 기록합니다
   document.getElementById("위치안내").innerHTML =
-    (상태.프로필 && 상태.프로필.좌표)
-      ? '지금은 <b style="color:#0f766e">현재 위치</b>를 쓰고 있습니다. ' +
-        '버튼을 다시 누르면 새로 잡고, 주소를 고치면 주소로 돌아갑니다.'
-      : '근처 가게를 추천할 때만 씁니다. 안 눌러도 됩니다 — 적어주신 글자로 씁니다.';
+    (상태.프로필 && 상태.프로필.위치 === 현재위치표시)
+      ? '지금은 <b style="color:#A85C2E">현재 위치</b>를 쓰고 있습니다. ' +
+        '주소를 직접 적으면 그 동네로 바뀝니다.'
+      : '근처 가게를 찾을 때 씁니다. [현재 위치]를 누르면 지금 있는 곳으로 찾습니다.';
 
   if(고치기){
     const p = 상태.프로필;
+    document.getElementById("나이").value = p.나이 || 30;
     document.getElementById("키").value = p.키;
     document.getElementById("현재체중").value = p.현재체중;
     document.getElementById("목표체중").value = p.목표체중;
     document.getElementById("기간주").value = p.기간주;
     document.getElementById("위치").value = p.위치;
+    document.querySelectorAll("#성별칸 button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v === (p.성별 || "남")));
+    document.querySelectorAll("#목표타입칸 button").forEach(b=>
+      b.classList.toggle("on", b.dataset.v === (p.목표타입 || "체중 감량")));
     document.querySelectorAll('#금기칸 input').forEach(i=>{
       i.checked = p.못먹는것.includes(i.value) || (p.못먹는것.length===0 && i.value==="없음");
     });
     document.querySelectorAll("#말투칸 button").forEach(b=>
       b.classList.toggle("on", b.dataset.v === p.말투));
   }
+  목표칸맞추기();
   document.getElementById("판-설정").classList.add("hide");
   document.getElementById("판-설문").classList.remove("hide");
 }
@@ -692,21 +760,30 @@ function 설문닫기(){
 function 설문저장(){
   const 고치기 = !!상태.프로필;
   const 이전금기 = 고치기 ? 상태.프로필.못먹는것.slice() : [];
-  const 이전좌표 = 고치기 ? 상태.프로필.좌표 : null;
 
-  /* 좌표 — 이번에 [현재 위치]를 눌렀으면 그 값, 안 눌렀으면 원래 값을 유지합니다.
-     눌렀는데 실패했으면(null) 주소 방식으로 돌아갑니다. */
-  const 좌표 = (새좌표 === undefined) ? (이전좌표 || null) : 새좌표;
+  const 현재체중 = +document.getElementById("현재체중").value;
+  const 목표타입 = 선택값("목표타입칸") || "체중 감량";
+
+  /* 감량·증량이 아니면 몸무게 목표를 안 물어봅니다.
+     그래도 목표체중·기간주는 "현재 몸무게 유지"로 채워서 저장합니다 —
+     data.js 의 기준값계산·목표안전한가가 이 두 값을 쓰고 있어서,
+     비워두면 그쪽이 깨집니다. 필드를 없애지 않고 채우는 쪽을 택했습니다. */
+  const 몸무게목표 = 몸무게목표필요(목표타입)
+    ? { 목표체중:+document.getElementById("목표체중").value,
+        기간주:+document.getElementById("기간주").value }
+    : { 목표체중:현재체중, 기간주:12 };
 
   const 프로필 = {
+    성별:선택값("성별칸") || "남",
+    나이:+document.getElementById("나이").value,
     키:+document.getElementById("키").value,
-    현재체중:+document.getElementById("현재체중").value,
-    목표체중:+document.getElementById("목표체중").value,
-    기간주:+document.getElementById("기간주").value,
+    현재체중:현재체중,
+    목표타입:목표타입,
+    목표체중:몸무게목표.목표체중,
+    기간주:몸무게목표.기간주,
     못먹는것:[...document.querySelectorAll('#금기칸 input:checked')]
               .map(i=>i.value).filter(v=>v!=="없음"),
     위치:document.getElementById("위치").value,
-    좌표:좌표,
     말투:선택값("말투칸") || "엄마"
   };
   const 경고 = document.getElementById("설문경고");
@@ -720,6 +797,7 @@ function 설문저장(){
   경고.innerHTML = "";
   상태.프로필 = 프로필;
   저장();
+  주변찾아보기(프로필.위치);            // ← data.js 가 그 동네 가게로 식당표를 갈아 끼웁니다
   document.getElementById("판-설문").classList.add("hide");
 
   if(!고치기){ 대화그리기(); 숫자갱신(); return; }
@@ -773,10 +851,14 @@ function 설정열기(){
 function 프로필요약그리기(){
   const p = 상태.프로필;
   if(!p) return;
+  const 몸무게 = 몸무게목표필요(p.목표타입)
+    ? p.현재체중 + "kg → " + p.목표체중 + "kg (" + p.기간주 + "주)"
+    : p.현재체중 + "kg 유지";
   document.getElementById("프로필요약").innerHTML =
-    "지금 — " + p.현재체중 + "kg → " + p.목표체중 + "kg (" + p.기간주 + "주) · " +
+    "지금 — " + (p.목표타입 || "체중 감량") + " · " + 몸무게 + "<br>" +
+    (p.성별 || "남") + " · " + (p.나이 || "-") + "세 · " + p.키 + "cm · " +
     "못 먹는 것: " + (p.못먹는것.join(", ") || "없음") + " · " +
-    (p.좌표 ? "위치: 현재 위치 사용 중" : p.위치);
+    (p.위치 === 현재위치표시 ? "현재 위치 사용 중" : p.위치);
 }
 function 설정닫기(){
   상태.키 = document.getElementById("키입력").value.trim();
@@ -787,7 +869,7 @@ function 연결상태그리기(){
   const el = document.getElementById("연결상태");
   const file = location.protocol === "file:";
   el.innerHTML = file
-    ? '<b style="color:#9a3412">지금은 파일을 직접 열어서 AI 연결이 안 됩니다.</b><br>로컬 서버나 GitHub Pages로 열어야 합니다. (AI 없이도 앱은 그대로 돌아갑니다)'
+    ? '<b style="color:#8C4520">지금은 파일을 직접 열어서 AI 연결이 안 됩니다.</b><br>로컬 서버나 GitHub Pages로 열어야 합니다. (AI 없이도 앱은 그대로 돌아갑니다)'
     : (상태.키 ? "AI 연결됨" : "AI 미연결 — 준비된 답으로 대신합니다");
 }
 function 오늘초기화(){
@@ -796,15 +878,79 @@ function 오늘초기화(){
 }
 function 전체초기화(){ try{ localStorage.removeItem(저장키); }catch(e){} location.reload(); }
 
+/* ── 파일 점검 ──────────────────────────────────────────
+   talk.js 나 data.js 에 문법 오류(쉼표·따옴표 빠짐)가 있으면
+   그 파일의 내용이 통째로 사라집니다. 그대로 두면 하얀 화면만 남고
+   원인을 알 수 없습니다. 그래서 시작하기 전에 먼저 확인하고,
+   빠진 게 있으면 무엇이 없는지 화면에 적어줍니다.
+
+   typeof 는 선언되지 않은 이름에도 안전합니다. 그래서 여기서는 터지지 않습니다. */
+function 계약점검(){
+  const 없는것 = { "talk.js (A 담당)":[], "data.js (C 담당)":[] };
+  const A = 없는것["talk.js (A 담당)"], C = 없는것["data.js (C 담당)"];
+
+  if(typeof 입력검사       !== "function") A.push("입력검사");
+  if(typeof 출력검사       !== "function") A.push("출력검사");
+  if(typeof 안전검사       !== "function") A.push("안전검사");
+  if(typeof 시스템지시문   !== "function") A.push("시스템지시문");
+  if(typeof 규칙으로답하기 !== "function") A.push("규칙으로답하기");
+  if(typeof 문장만들기     !== "function") A.push("문장만들기");
+  if(typeof 답변형식       !== "object")   A.push("답변형식");
+
+  if(typeof 음식표       === "undefined" || !Array.isArray(음식표))   C.push("음식표");
+  if(typeof 식당표       === "undefined" || !Array.isArray(식당표))   C.push("식당표");
+  if(typeof 금기후보     === "undefined" || !Array.isArray(금기후보)) C.push("금기후보");
+  if(typeof 기준값계산   !== "function") C.push("기준값계산");
+  if(typeof 목표안전한가 !== "function") C.push("목표안전한가");
+  if(typeof 음식찾기     !== "function") C.push("음식찾기");
+
+  const 깨진파일 = Object.keys(없는것).filter(k => 없는것[k].length);
+  if(!깨진파일.length) return true;
+
+  document.body.innerHTML =
+    '<div style="max-width:460px;margin:40px auto;padding:22px;font-size:15px;line-height:1.7">' +
+    '<h2 style="color:#8C4520;margin:0 0 10px">앱을 열 수 없습니다</h2>' +
+    깨진파일.map(f =>
+      '<p><b>' + f + '</b> 를 읽지 못했습니다.<br>' +
+      '<span style="color:#8A8175">없는 것 — ' + 없는것[f].join(", ") + '</span></p>').join("") +
+    '<p class="점검안내">' +
+    '거의 항상 그 파일에 <b>쉼표(,)나 따옴표(")가 하나 빠진 것</b>입니다.<br>' +
+    '<b>F12 → Console</b> 의 빨간 줄에 몇 번째 줄인지 나옵니다.<br>' +
+    '그 줄을 담당자에게 그대로 알려주세요.</p></div>';
+  return false;
+}
+
+/* 앱이 도는 데 지장은 없지만 나중에 이상하게 보이는 것들 — 콘솔에만 알려줍니다 */
+function 잔소리(){
+  if(Array.isArray(금기후보) && !금기후보.includes("없음"))
+    console.warn("점검 — data.js 의 금기후보에 \"없음\"이 없습니다. 못 먹는 게 없는 사람이 설문을 넘어갈 수 없습니다.");
+  ["첫인사","기록","부족"].forEach(키 => {
+    if(!문장만들기("엄마", 키, {}))
+      console.warn("점검 — talk.js 의 문장틀에 \"" + 키 + "\" 문장이 없습니다. 그 자리가 빈칸으로 나옵니다.");
+  });
+  if(Array.isArray(식당표) && !식당표.some(m => (m.들어간것||[]).includes("땅콩")))
+    console.warn("점검 — data.js 식당표에 땅콩이 든 메뉴가 없습니다. 발표 안전 시연을 보여줄 수 없습니다.");
+  if(typeof 주변갱신 !== "function")
+    console.warn("점검 — data.js 에 주변갱신()이 없습니다. 근처 가게를 실시간으로 못 찾습니다 (기본 목록으로 동작).");
+  if(typeof 카카오JS키 === "undefined" || !카카오JS키)
+    console.warn("점검 — data.js 에 카카오JS키가 없습니다. 근처 가게 검색이 안 됩니다. C에게 알려주세요.");
+}
+
 /* ── 시작 ── */
-불러오기();
-금기칸그리기();
-버튼묶음("말투칸");
-버튼묶음("말투칸2", v=>{ if(상태.프로필){ 상태.프로필.말투=v; 저장(); } });
-if(상태.프로필){
-  대화그리기(); 숫자갱신();
-} else {
-  설문열기();
+if(계약점검()){
+  잔소리();
+  사진받는법붙이기();
+  불러오기();
+  금기칸그리기();
+  버튼묶음("성별칸");
+  버튼묶음("목표타입칸", 목표칸맞추기);   // 목표를 바꾸면 아래 칸이 나타나거나 사라집니다
+  버튼묶음("말투칸");
+  버튼묶음("말투칸2", v=>{ if(상태.프로필){ 상태.프로필.말투=v; 저장(); } });
+  if(상태.프로필){
+    대화그리기(); 숫자갱신();
+  } else {
+    설문열기();
+  }
 }
 </script>
 </body>
