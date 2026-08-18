@@ -403,11 +403,41 @@ function 숫자갱신(){
    실제 좌표 변환과 카카오 검색은 모두 data.js(C 담당)가 합니다.
    여기서는 어느 쪽을 쓸지만 정합니다. */
 const 현재위치표시 = "현재위치";
-function 현재위치쓰기(){
-  document.getElementById("위치").value = 현재위치표시;
-  document.getElementById("위치안내").innerHTML =
-    '<b style="color:#A85C2E">현재 위치를 쓰겠습니다.</b> ' +
-    '저장하면 지금 있는 곳 근처 가게를 찾아옵니다. (권한을 한 번 물어봅니다)';
+
+/* 버튼을 누른 그 자리에서 권한을 물어봅니다.
+   저장할 때까지 미루면, 거부돼 있어도 아무 말이 없어서
+   "눌렀는데 아무 일도 안 일어난다"가 됩니다. */
+function 위치허락받기(){
+  return new Promise((성공, 실패) => {
+    if(!navigator.geolocation) return 실패(new Error("이 브라우저는 위치 기능이 없습니다"));
+    navigator.geolocation.getCurrentPosition(
+      () => 성공(true),
+      e => 실패(new Error(
+        e.code === 1 ? "위치 권한이 꺼져 있습니다" :
+        e.code === 3 ? "위치를 찾는 데 너무 오래 걸립니다" :
+                       "위치를 받지 못했습니다")),
+      { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
+    );
+  });
+}
+
+async function 현재위치쓰기(){
+  const 안내 = document.getElementById("위치안내");
+  const 버튼 = document.getElementById("위치버튼");
+  안내.textContent = "위치를 확인하는 중…";
+  버튼.disabled = true;
+  try{
+    await 위치허락받기();
+    document.getElementById("위치").value = 현재위치표시;
+    안내.innerHTML = '<b style="color:#A85C2E">현재 위치를 쓰겠습니다.</b> ' +
+                     '저장하면 지금 있는 곳 근처 가게를 찾아옵니다.';
+  }catch(e){
+    안내.innerHTML =
+      '<b style="color:#8C4520">' + e.message + '</b><br>' +
+      '주소창 왼쪽 <b>자물쇠 아이콘 → 위치 → 허용</b> 으로 켠 뒤 다시 눌러주세요.<br>' +
+      '그냥 주소를 적으셔도 됩니다 — 그 동네로 찾아줍니다.';
+  }
+  버튼.disabled = false;
 }
 
 /* ── 주변 가게 새로 찾기 ── data.js 의 주변갱신()을 부릅니다.
