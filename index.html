@@ -35,10 +35,24 @@
   .채움 button{display:block;width:100%;text-align:left;font-family:inherit;font-size:13.5px;
         background:#fff;border:1px solid #bfe2de;border-radius:8px;padding:8px 10px;
         margin-top:6px;cursor:pointer}
+  /* 추천 묶음 — 우리가 아는 곳 / 근처 가게 를 나눠서 보여줍니다 */
+  .묶음{margin-top:9px}
+  .묶음제목{font-size:12px;font-weight:700;color:#0f766e;display:flex;align-items:center;gap:6px}
+  .묶음제목 span{font-weight:400;color:var(--mut);font-size:11.5px}
+  .묶음.모름 .묶음제목{color:#92400e}
+  .묶음.모름 button{border-color:#f0dcb8}
+  .주의{font-size:11.5px;color:#92400e;margin-top:5px;line-height:1.5}
+  .메뉴링크{font-size:11.5px;color:#0f766e;text-decoration:underline;margin-left:6px}
+  .찾는중{font-size:12px;color:var(--mut);margin-top:8px}
 
-  .입력칸{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:var(--card)}
-  .입력칸 input{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--fill);
-        padding:10px 15px;font-family:inherit;font-size:15px}
+  .입력칸{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:var(--card);
+        align-items:center}
+  .입력칸 input[type=text]{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--fill);
+        padding:10px 15px;font-family:inherit;font-size:15px;min-width:0}
+  .사진버튼{border:1px solid var(--line);background:#fff;border-radius:20px;padding:9px 12px;
+        font-size:17px;cursor:pointer;line-height:1;flex:none}
+  .사진버튼:disabled{opacity:.4;cursor:default}
+  .말 img{display:block;max-width:100%;max-height:240px;border-radius:10px;margin-bottom:6px}
   .입력칸 button{border:none;background:var(--accent);color:#fff;border-radius:20px;
         padding:10px 18px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
   .입력칸 button:disabled{background:#c7d0d6;cursor:default}
@@ -81,6 +95,9 @@
   <div id="대화"></div>
 
   <div class="입력칸">
+    <button class="사진버튼" id="사진버튼" onclick="사진고르기()" title="음식 사진 올리기">📷</button>
+    <input type="file" id="사진칸" accept="image/*" capture="environment"
+           style="display:none" onchange="사진골랐다(this)">
     <input type="text" id="입력" placeholder="제육덮밥 / 오늘 야근이야 / 단백질 뭐로 채워?"
            onkeydown="if(event.key==='Enter')보내기()" autocomplete="off">
     <button id="보내기버튼" onclick="보내기()">보내기</button>
@@ -108,6 +125,12 @@
   <div class="안내">없으면 [없음]을 눌러야 넘어갑니다.</div>
   <label>회사나 집 위치</label>
   <input type="text" id="위치" value="강남역 3번 출구">
+  <div class="btns" style="margin-top:6px">
+    <button type="button" id="위치버튼" onclick="현재위치쓰기()">📍 현재 위치 쓰기</button>
+  </div>
+  <div class="안내" id="위치안내">
+    근처 가게를 추천할 때만 씁니다. 안 눌러도 됩니다 — 적어주신 글자로 씁니다.
+  </div>
   <label>코치 말투</label>
   <div class="btns" id="말투칸">
     <button data-v="엄마" class="on">엄마</button>
@@ -166,6 +189,20 @@
      4. 화면에 표시 + 기록 반영
    ═══════════════════════════════════════════════════════════ */
 
+/* ═══ 카카오 지도 키 ═══════════════════════════════════════
+   아래 따옴표 안에 카카오 JavaScript 키를 붙여넣으세요. 이 줄만 고치면 됩니다.
+
+     developers.kakao.com → 내 애플리케이션 → 앱 키 → JavaScript 키
+
+   ★ 반드시 [플랫폼 → Web] 에 아래 두 주소를 등록하세요.
+     등록해야만 우리 사이트에서만 동작합니다. 이게 유일한 보호 장치입니다.
+       https://jollyybeeeee-max.github.io
+       http://localhost:8777
+
+   비워두면 "근처 가게" 기능만 빠지고 앱은 그대로 돌아갑니다.
+   ※ 이 키는 공개돼도 되는 키입니다. Anthropic 키는 절대 여기 넣지 마세요. */
+const 카카오키 = "여기에_카카오_JavaScript_키_붙여넣기";
+
 const 저장키 = "harufit-v2";
 let 상태 = { 프로필:null, 키:"", 오늘:{ 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] } };
 let 보내는중 = false;
@@ -221,6 +258,18 @@ function 내말(글){
   저장();
 }
 
+/* 사진을 올린 경우 — 화면에는 사진을 보여주고, 저장에는 글자만 남깁니다.
+   사진 자체를 저장하면 브라우저 저장 공간이 금방 꽉 찹니다. */
+function 내사진(미리보기, 글){
+  상태.오늘.대화.push({ 누가:"나", 글: 글 || "📷 사진" });
+  const d = 말풍선("나", 글 || "📷 사진");
+  const img = document.createElement("img");
+  img.src = 미리보기;
+  d.prepend(img);
+  img.onload = 아래로;
+  저장();
+}
+
 function 숫자갱신(){
   if(!상태.프로필) return;
   const 기준 = 기준값계산(상태.프로필);                       // ← data.js
@@ -230,7 +279,81 @@ function 숫자갱신(){
   document.getElementById("남은단백질").textContent = 기준.목표단백질 - 먹은단백질;
 }
 
-/* ── 부족분 채우기 카드 ── 반드시 안전검사를 통과한 것만 ── */
+/* ── 위치 ──────────────────────────────────────────────
+   두 가지 방법이 있습니다.
+     주소 입력 : 지금까지 쓰던 방식. 식당표의 고정 거리를 씁니다.
+     현재 위치 : GPS. 카카오로 진짜 근처 가게를 찾아옵니다.
+   GPS 는 [현재 위치 쓰기] 를 눌렀을 때만 씁니다. 몰래 읽지 않습니다. */
+function 현재위치받기(){
+  return new Promise((성공, 실패) => {
+    if(!navigator.geolocation) return 실패(new Error("이 브라우저는 위치 기능이 없습니다"));
+    navigator.geolocation.getCurrentPosition(
+      p => 성공({ 위도:p.coords.latitude, 경도:p.coords.longitude }),
+      e => 실패(new Error(e.code === 1 ? "위치 권한이 거부됐습니다" : "위치를 받지 못했습니다")),
+      { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
+    );
+  });
+}
+
+let 새좌표 = undefined;   // undefined = 안 누름 · null = 실패 · {} = 성공
+async function 현재위치쓰기(){
+  const 안내 = document.getElementById("위치안내");
+  안내.textContent = "위치를 확인하는 중…";
+  try{
+    새좌표 = await 현재위치받기();
+    안내.innerHTML = '<b style="color:#0f766e">현재 위치를 쓰겠습니다.</b> ' +
+                     '근처 가게를 실제 거리로 찾아줍니다.';
+  }catch(e){
+    새좌표 = null;
+    안내.innerHTML = '<b style="color:#9a3412">' + e.message + '</b><br>' +
+                     '괜찮습니다. 위에 적어주신 주소로 씁니다.';
+  }
+}
+
+/* ── 카카오 지도 불러오기 ── 키가 있을 때만, 딱 한 번만 ── */
+let 카카오준비 = null;
+function 카카오불러오기(){
+  if(카카오준비) return 카카오준비;
+  if(!카카오키 || 카카오키.indexOf("여기에") === 0){
+    카카오준비 = Promise.reject(new Error("카카오 키가 아직 없습니다"));
+    return 카카오준비;
+  }
+  카카오준비 = new Promise((성공, 실패) => {
+    const s = document.createElement("script");
+    s.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + 카카오키 +
+            "&libraries=services&autoload=false";
+    s.onload  = () => kakao.maps.load(() => 성공(true));
+    s.onerror = () => 실패(new Error("카카오 지도를 못 불러왔습니다 — 도메인 등록을 확인하세요"));
+    document.head.appendChild(s);
+  });
+  return 카카오준비;
+}
+
+/* 내 좌표 기준 반경 안의 음식점을 가져옵니다. FD6 = 음식점 */
+async function 근처가게찾기(좌표, 반경){
+  await 카카오불러오기();
+  const ps = new kakao.maps.services.Places();
+  return new Promise((성공, 실패) => {
+    ps.categorySearch("FD6", (결과, 코드) => {
+      if(코드 === kakao.maps.services.Status.OK) 성공(결과);
+      else if(코드 === kakao.maps.services.Status.ZERO_RESULT) 성공([]);
+      else 실패(new Error("카카오 검색에 실패했습니다"));
+    }, {
+      location: new kakao.maps.LatLng(좌표.위도, 좌표.경도),
+      radius: 반경,
+      sort: kakao.maps.services.SortBy.DISTANCE
+    });
+  });
+}
+
+/* ── 부족분 채우기 카드 ──────────────────────────────────
+   두 묶음으로 나눠서 보여줍니다. 이게 이 앱의 핵심 원칙입니다.
+
+     우리가 아는 곳 : C가 재료를 적어둔 목록. 안전검사로 걸러냅니다.
+     근처 가게      : 카카오에서 온 진짜 가게. 재료를 모르므로 거르지 않고,
+                      모른다고 화면에 적습니다.
+
+   모르는 걸 아는 척하지 않습니다. */
 function 채움카드(){
   const 기준 = 기준값계산(상태.프로필);
   const 남은단백질 = 기준.목표단백질 - 상태.오늘.기록.reduce((a,b)=>a+b.단백질,0);
@@ -240,16 +363,148 @@ function 채움카드(){
                .filter(m => m.거리 <= 500)
                .sort((a,b)=>b.단백질-a.단백질)
                .slice(0,3);
-  if(!통과.length) return;
+
+  const 좌표 = 상태.프로필.좌표;
+  if(!통과.length && !좌표) return;
 
   const d = document.createElement("div");
   d.className = "채움";
   d.innerHTML = "<b>" + 문장만들기(상태.프로필.말투,"부족",{g:남은단백질}) + "</b> " +
-                상태.프로필.위치 + " 기준 500m 안이야." +
-                통과.map(m => '<button onclick="메뉴탭(\''+m.메뉴+'\')">'+
-                  m.가게+' · '+m.메뉴+' — '+m.거리+'m · 단백질 '+m.단백질+'g</button>').join("");
+                (좌표 ? "지금 있는 곳" : 상태.프로필.위치) + " 기준 500m 안이야.";
+
+  if(통과.length){
+    const 묶음 = document.createElement("div");
+    묶음.className = "묶음 아는곳";
+    묶음.innerHTML = '<div class="묶음제목">우리가 아는 곳 <span>재료까지 확인함</span></div>' +
+      통과.map(m => '<button onclick="메뉴탭(\''+m.메뉴+'\')">'+
+        m.가게+' · '+m.메뉴+' — '+m.거리+'m · 단백질 '+m.단백질+'g</button>').join("");
+    d.appendChild(묶음);
+  }
+
   document.getElementById("대화").appendChild(d);
   아래로();
+
+  if(좌표) 근처가게붙이기(d, 좌표);
+}
+
+/* 카카오 결과를 카드에 덧붙입니다. 실패해도 위 카드는 그대로 남습니다. */
+async function 근처가게붙이기(카드, 좌표){
+  const 기다림 = document.createElement("div");
+  기다림.className = "찾는중";
+  기다림.textContent = "근처 가게를 찾는 중…";
+  카드.appendChild(기다림);
+  아래로();
+
+  let 가게들;
+  try{
+    가게들 = await 근처가게찾기(좌표, 500);
+  }catch(e){
+    console.warn("근처 가게를 못 가져왔습니다 —", e.message);
+    기다림.remove();
+    return;                    // 조용히 접습니다. 우리 목록은 이미 떠 있습니다.
+  }
+  기다림.remove();
+  if(!가게들.length) return;
+
+  /* 가게 이름·업종에서 아는 음식을 찾아봅니다.
+     찾으면 진짜 숫자를, 못 찾으면 대략값을 씁니다.
+       칼로리는 틀려도 숫자가 어긋날 뿐이지만,
+       재료는 모르면 위험하므로 아래에 "모른다"고 적습니다. */
+  const 목록 = 가게들.slice(0, 4).map(g => {
+    const 아는음식 = 음식찾기(g.place_name + " " + g.category_name);   // ← data.js
+    return {
+      이름: g.place_name,
+      거리: Number(g.distance) || 0,
+      업종: (g.category_name || "").split(">").pop().trim(),
+      링크: g.place_url,
+      kcal: 아는음식 ? 아는음식.kcal : 400,
+      단백질: 아는음식 ? 아는음식.단백질 : 12,
+      앎: !!아는음식,
+      기준메뉴: 아는음식 ? 아는음식.이름 : null
+    };
+  }).sort((a,b) => (b.앎 - a.앎) || (a.거리 - b.거리));
+
+  const 묶음 = document.createElement("div");
+  묶음.className = "묶음 모름";
+  묶음.innerHTML =
+    '<div class="묶음제목">근처 가게 <span>카카오맵 · 재료 정보 없음</span></div>' +
+    목록.map(m =>
+      '<button onclick="근처탭(this)" data-kcal="' + m.kcal + '" data-단백질="' + m.단백질 +
+      '" data-이름="' + m.이름.replace(/"/g, "") + '">' +
+      m.이름 + ' · ' + m.거리 + 'm · ' + m.업종 + '<br>' +
+      (m.앎 ? m.기준메뉴 + ' 기준 대략 ' + m.kcal + 'kcal · 단백질 ' + m.단백질 + 'g'
+            : '칼로리 정보 없음 — 대략 ' + m.kcal + 'kcal로 잡음') +
+      '</button>').join("") +
+    '<div class="주의">가게마다 재료가 달라. 못 먹는 게 있으면 주문할 때 꼭 물어봐.</div>' +
+    목록.filter(m => m.링크).map(m =>
+      '<a class="메뉴링크" href="' + m.링크 + '" target="_blank" rel="noopener">' +
+      m.이름 + ' 메뉴 보기</a>').join(" ");
+
+  카드.appendChild(묶음);
+  아래로();
+}
+
+/* 근처 가게를 눌렀을 때 — 그 자리에서 기록합니다 */
+function 근처탭(버튼){
+  const 이름 = 버튼.getAttribute("data-이름");
+  const kcal = +버튼.getAttribute("data-kcal");
+  const 단백질 = +버튼.getAttribute("data-단백질");
+  상태.오늘.기록.push({ 이름, kcal, 단백질 });
+  저장(); 숫자갱신();
+  앱말(문장만들기(상태.프로필.말투, "기록", {메뉴:이름, kcal:kcal}));
+}
+
+/* ── 사진 ──────────────────────────────────────────────
+   사진은 AI가 있어야 알아볼 수 있습니다. 규칙만으로는 그림을 읽을 수 없습니다.
+   보내기 전에 크기를 줄입니다 — 원본 사진은 3~5MB라 느리고 비쌉니다. */
+function 사진고르기(){
+  if(!상태.프로필) return;
+  if(!상태.키){
+    앱말("사진은 AI 연결이 있어야 알아볼 수 있어.\n설정에서 키를 넣거나, 먹은 걸 글로 적어줘.", true);
+    return;
+  }
+  document.getElementById("사진칸").click();
+}
+
+/* 긴 쪽을 1024px 로 줄이고 JPEG 로 다시 만듭니다 */
+function 사진줄이기(파일, 최대){
+  return new Promise((성공, 실패) => {
+    const reader = new FileReader();
+    reader.onerror = () => 실패(new Error("사진을 읽지 못했습니다"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => 실패(new Error("사진 형식을 알 수 없습니다"));
+      img.onload = () => {
+        const 비율 = Math.min(1, 최대 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width  = Math.round(img.width  * 비율);
+        c.height = Math.round(img.height * 비율);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        const url = c.toDataURL("image/jpeg", 0.8);
+        성공({ 미리보기:url, base64:url.split(",")[1] });
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(파일);
+  });
+}
+
+async function 사진골랐다(칸){
+  const 파일 = 칸.files && 칸.files[0];
+  칸.value = "";                       // 같은 사진을 다시 고를 수 있게
+  if(!파일 || 보내는중) return;
+  let 사진;
+  try{
+    사진 = await 사진줄이기(파일, 1024);
+  }catch(e){
+    앱말(e.message + ". 다른 사진으로 해볼래?", true);
+    return;
+  }
+  const 입력 = document.getElementById("입력");
+  const 글 = 입력.value.trim();
+  입력.value = "";
+  내사진(사진.미리보기, 글);
+  await 답받기(글 || "이 사진에 있는 음식을 알려줘.", 사진.base64);
 }
 
 /* ── 한 줄 보내기 ── */
@@ -260,26 +515,35 @@ async function 보내기(){
   if(!글 || !상태.프로필) return;
   입력.value = "";
   내말(글);
+  await 답받기(글, null);
+}
 
+/* 글이든 사진이든 여기서 처리합니다. 사진이면 입력검사를 건너뜁니다 —
+   그림에는 검사할 글자가 없습니다. 출력검사는 사진일 때도 그대로 합니다. */
+async function 답받기(글, 사진){
   // 1. 입력 검사 — AI를 부르기 전에 막는다
-  const 막기 = 입력검사(글);                                   // ← talk.js
+  const 막기 = 사진 ? { 막힘:false } : 입력검사(글);            // ← talk.js
   if(막기.막힘){ 앱말(막기.답, true); return; }
 
   보내는중 = true;
   document.getElementById("보내기버튼").disabled = true;
+  document.getElementById("사진버튼").disabled = true;
   const 기다림 = document.createElement("div");
   기다림.className = "생각중";
-  기다림.textContent = "생각 중…";
+  기다림.textContent = 사진 ? "사진 보는 중…" : "생각 중…";
   document.getElementById("대화").appendChild(기다림);
   아래로();
 
   let 결과;
   try{
     // 2. AI 호출 (키가 있으면) 또는 규칙으로 답하기
-    결과 = 상태.키 ? await AI에게물어보기(글) : 규칙으로답하기(글, 상태.프로필, 상태.오늘);
+    결과 = 상태.키 ? await AI에게물어보기(글, 사진) : 규칙으로답하기(글, 상태.프로필, 상태.오늘);
   }catch(e){
     console.warn("AI 호출 실패 — 규칙으로 대신합니다:", e.message);
-    결과 = 규칙으로답하기(글, 상태.프로필, 상태.오늘);        // ← talk.js
+    결과 = 사진
+      ? { 종류:"기타", 음식:[], 컨디션:null, 일정:null,
+          답:"사진을 못 알아봤어. 뭘 먹었는지 글로 적어줄래?" }
+      : 규칙으로답하기(글, 상태.프로필, 상태.오늘);            // ← talk.js
   }
   기다림.remove();
 
@@ -298,17 +562,34 @@ async function 보내기(){
 
   보내는중 = false;
   document.getElementById("보내기버튼").disabled = false;
+  document.getElementById("사진버튼").disabled = false;
   document.getElementById("입력").focus();
 }
 
 /* ── AI 호출 ──
    브라우저에서 직접 부르므로 anthropic-dangerous-direct-browser-access 헤더가 필요합니다.
-   file:// 로 열면 막힙니다 — 로컬 서버나 GitHub Pages에서 열어야 합니다. */
-async function AI에게물어보기(글){
-  const 최근 = 상태.오늘.대화.slice(-8).map(m => ({
+   file:// 로 열면 막힙니다 — 로컬 서버나 GitHub Pages에서 열어야 합니다.
+
+   사진이 있으면 마지막 차례에 사진을 같이 붙입니다. 사진은 저장하지 않고
+   이번 요청에만 씁니다. */
+async function AI에게물어보기(글, 사진){
+  let 최근 = 상태.오늘.대화.slice(-8).map(m => ({
     role: m.누가==="나" ? "user" : "assistant",
     content: m.글
   }));
+  // 첫 차례는 반드시 사용자여야 합니다. 앱 인사말로 시작하면 잘라냅니다.
+  while(최근.length && 최근[0].role === "assistant") 최근.shift();
+  if(!최근.length) 최근 = [{ role:"user", content:글 }];
+
+  if(사진){
+    최근[최근.length - 1] = {
+      role: "user",
+      content: [
+        { type:"image", source:{ type:"base64", media_type:"image/jpeg", data:사진 } },
+        { type:"text", text:글 }
+      ]
+    };
+  }
 
   const 응답 = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -326,7 +607,7 @@ async function AI에게물어보기(글){
         format: { type: "json_schema", schema: 답변형식 }        // ← talk.js
       },
       system: 시스템지시문(상태.프로필, 상태.오늘),               // ← talk.js
-      messages: 최근.length ? 최근 : [{ role:"user", content:글 }]
+      messages: 최근
     })
   });
 
@@ -381,6 +662,13 @@ function 설문열기(){
   document.getElementById("설문취소").classList.toggle("hide", !고치기);
   document.getElementById("설문경고").innerHTML = "";
 
+  새좌표 = undefined;                       // 이번에 버튼을 눌렀는지만 기록합니다
+  document.getElementById("위치안내").innerHTML =
+    (상태.프로필 && 상태.프로필.좌표)
+      ? '지금은 <b style="color:#0f766e">현재 위치</b>를 쓰고 있습니다. ' +
+        '버튼을 다시 누르면 새로 잡고, 주소를 고치면 주소로 돌아갑니다.'
+      : '근처 가게를 추천할 때만 씁니다. 안 눌러도 됩니다 — 적어주신 글자로 씁니다.';
+
   if(고치기){
     const p = 상태.프로필;
     document.getElementById("키").value = p.키;
@@ -404,6 +692,11 @@ function 설문닫기(){
 function 설문저장(){
   const 고치기 = !!상태.프로필;
   const 이전금기 = 고치기 ? 상태.프로필.못먹는것.slice() : [];
+  const 이전좌표 = 고치기 ? 상태.프로필.좌표 : null;
+
+  /* 좌표 — 이번에 [현재 위치]를 눌렀으면 그 값, 안 눌렀으면 원래 값을 유지합니다.
+     눌렀는데 실패했으면(null) 주소 방식으로 돌아갑니다. */
+  const 좌표 = (새좌표 === undefined) ? (이전좌표 || null) : 새좌표;
 
   const 프로필 = {
     키:+document.getElementById("키").value,
@@ -413,6 +706,7 @@ function 설문저장(){
     못먹는것:[...document.querySelectorAll('#금기칸 input:checked')]
               .map(i=>i.value).filter(v=>v!=="없음"),
     위치:document.getElementById("위치").value,
+    좌표:좌표,
     말투:선택값("말투칸") || "엄마"
   };
   const 경고 = document.getElementById("설문경고");
@@ -439,17 +733,25 @@ function 설문저장(){
   앱말(바뀐것안내(이전금기, 프로필));
 }
 
-/* 화면에 남아 있는 추천 카드를 새 금기로 다시 거른다 */
+/* 화면에 남아 있는 추천 카드를 새 금기로 다시 거른다.
+   ★ "우리가 아는 곳" 묶음에만 적용합니다.
+     "근처 가게"는 애초에 재료를 모르는 곳이라 거르지 않습니다.
+     거르는 시늉을 하면 안전하다고 오해하게 됩니다. */
 function 카드재검사(){
   document.querySelectorAll(".채움").forEach(카드 => {
-    let 남은개수 = 0;
-    카드.querySelectorAll("button").forEach(b => {
-      const 메뉴 = (b.getAttribute("onclick").match(/'([^']+)'/) || [])[1];
-      const m = 식당표.find(x => x.메뉴 === 메뉴);
-      const 통과 = m && 안전검사([m], 상태.프로필.못먹는것).length > 0;   // ← talk.js
-      if(통과) 남은개수++; else b.remove();
-    });
-    if(남은개수 === 0) 카드.remove();
+    const 아는곳 = 카드.querySelector(".묶음.아는곳");
+    if(아는곳){
+      let 남은개수 = 0;
+      아는곳.querySelectorAll("button").forEach(b => {
+        const 메뉴 = (b.getAttribute("onclick").match(/'([^']+)'/) || [])[1];
+        const m = 식당표.find(x => x.메뉴 === 메뉴);
+        const 통과 = m && 안전검사([m], 상태.프로필.못먹는것).length > 0;   // ← talk.js
+        if(통과) 남은개수++; else b.remove();
+      });
+      if(남은개수 === 0) 아는곳.remove();
+    }
+    // 두 묶음이 다 비었으면 카드째 지운다
+    if(!카드.querySelector(".묶음")) 카드.remove();
   });
 }
 
@@ -473,7 +775,8 @@ function 프로필요약그리기(){
   if(!p) return;
   document.getElementById("프로필요약").innerHTML =
     "지금 — " + p.현재체중 + "kg → " + p.목표체중 + "kg (" + p.기간주 + "주) · " +
-    "못 먹는 것: " + (p.못먹는것.join(", ") || "없음") + " · " + p.위치;
+    "못 먹는 것: " + (p.못먹는것.join(", ") || "없음") + " · " +
+    (p.좌표 ? "위치: 현재 위치 사용 중" : p.위치);
 }
 function 설정닫기(){
   상태.키 = document.getElementById("키입력").value.trim();
