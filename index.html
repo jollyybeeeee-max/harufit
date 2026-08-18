@@ -20,6 +20,7 @@
     --accent:#C2703D;    /* 포인트 — 테라코타 */
     --accent-d:#A85C2E;  /* 눌렀을 때 */
     --accent-l:#F5E9DF;  /* 아주 옅은 테라코타 (카드 배경) */
+    --over:#96351F;      /* 목표를 넘었을 때 — 포인트색보다 확실히 진한 팥빛 */
     --deep:#3E3831;      /* 내 말풍선 */
     --soft:#EDE6D9;      /* 앱 말풍선 — 모래빛 */
     /* 한글은 어디서나 같은 고딕 하나로 통일합니다.
@@ -36,7 +37,7 @@
        -webkit-font-smoothing:antialiased}
   .app{max-width:460px;width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column;
        background:var(--card);border-left:1px solid var(--line);border-right:1px solid var(--line);
-       position:relative}
+       position:relative;box-shadow:0 0 40px rgba(46,42,37,.05)}
 
   /* 사진을 끌어올 때 덮이는 안내 — 마우스 이벤트를 가로채지 않도록 pointer-events:none */
   .놓는곳{position:absolute;inset:10px;z-index:5;pointer-events:none;
@@ -59,8 +60,64 @@
   .영양띠 span{display:flex;align-items:baseline;gap:3px}
   .영양띠 b{font-family:var(--num);font-weight:400;font-size:16px;color:var(--accent);letter-spacing:-.3px}
   .영양띠 i{font-style:normal;font-size:10px;color:var(--mut)}
+  /* 눌러서 오늘 요약을 여는 줄 — 누를 수 있다는 걸 알 수 있게 표시를 답니다 */
+  .영양띠{cursor:pointer;border-bottom:none;padding-bottom:10px;
+       transition:background .15s}
+  .영양띠:hover{background:var(--fill)}
+  .영양띠:hover b{color:var(--accent-d)}
+  .영양띠::after{content:"›";font-size:15px;color:var(--line);line-height:1;align-self:center}
+  .영양띠:hover::after{color:var(--accent)}
 
-  #대화{flex:1;overflow-y:auto;padding:18px 16px 6px;display:flex;flex-direction:column;gap:11px}
+  /* 머리말 아래 얇은 띠 — 오늘 칼로리를 얼마나 채웠는지 한눈에 */
+  .진행줄{height:3px;background:var(--line);position:relative}
+  .진행줄 span{position:absolute;left:0;top:0;bottom:0;background:var(--accent);
+       border-radius:0 2px 2px 0;transition:width .45s ease}
+  .진행줄 span.넘음{background:var(--over)}
+  /* 남은 양이 마이너스면 — 이미 넘긴 것이니 색으로 알려줍니다 */
+  .영양띠 b.넘음{color:var(--over);font-weight:700}
+
+  /* ── 오늘 요약 ── */
+  .요약머리{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+       padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .큰숫자{display:flex;align-items:baseline;gap:4px}
+  .큰숫자 b{font-family:var(--num);font-weight:400;font-size:38px;line-height:1;
+       color:var(--accent);letter-spacing:-1px}
+  .큰숫자 i{font-style:normal;font-size:13px;color:var(--mut)}
+  .요약곁말{font-size:12.5px;color:var(--mut);flex:1;min-width:120px;line-height:1.5}
+
+  .막대줄{margin-bottom:13px}
+  .막대말{display:flex;justify-content:space-between;align-items:baseline;
+       font-size:12px;color:var(--mut);margin-bottom:5px}
+  .막대말 em{font-style:normal;font-weight:700;letter-spacing:.3px;color:var(--ink);font-size:12px}
+  .막대말 span{font-family:var(--num);font-size:12.5px}
+  .막대말 span b{font-weight:400;color:var(--accent);font-size:14px}
+  .막대줄.넘음 .막대말 span b{color:var(--over);font-weight:700}
+  .막대줄.넘음 .막대말 em::after{content:" 초과";font-size:10px;color:var(--over);
+       font-weight:400;letter-spacing:0}
+  .막대{height:7px;border-radius:4px;background:var(--fill);
+       border:1px solid var(--line);overflow:hidden}
+  .막대 span{display:block;height:100%;background:var(--accent);
+       border-radius:3px;transition:width .45s ease}
+  .막대 span.넘음{background:var(--over)}
+
+  .끼니{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+       padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .끼니:last-child{border-bottom:none}
+  .끼니 .이름{flex:1;word-break:break-word}
+  .끼니 .잔값{font-family:var(--num);font-size:11.5px;color:var(--mut);white-space:nowrap}
+  .끼니 .잔값 b{font-weight:400;color:var(--ink);font-size:13.5px}
+  .빈칸말{font-size:13px;color:var(--mut);padding:14px 0;text-align:center;
+       background:var(--fill);border-radius:10px;margin-top:4px}
+  .어제줄{margin-top:16px;padding:11px 13px;background:var(--fill);border-radius:10px;
+       font-size:12.5px;color:var(--mut);line-height:1.6}
+  .어제줄 b{font-family:var(--num);font-weight:400;color:var(--ink);font-size:13.5px}
+
+  #대화{flex:1;overflow-y:auto;padding:18px 16px 6px;display:flex;flex-direction:column;gap:11px;
+        scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  #대화::-webkit-scrollbar{width:7px}
+  #대화::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  #대화::-webkit-scrollbar-thumb:hover{background:#D3C9B8}
+  #대화::-webkit-scrollbar-track{background:transparent}
   .말{max-width:80%;padding:11px 15px;border-radius:16px;white-space:pre-wrap;word-break:break-word;
       font-size:14.5px;line-height:1.6}
   .나{align-self:flex-end;background:var(--deep);color:#F7F3EA;border-bottom-right-radius:5px}
@@ -90,7 +147,8 @@
         align-items:center}
   .입력칸 input[type=text]{flex:1;border:1px solid var(--line);border-radius:22px;background:var(--fill);
         padding:11px 16px;font-family:inherit;font-size:15px;min-width:0;color:var(--ink)}
-  .입력칸 input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .입력칸 input[type=text]:focus{outline:none;border-color:var(--accent);
+        box-shadow:0 0 0 3px var(--accent-l);background:var(--card)}
   .입력칸 input[type=text]::placeholder{color:#B3A896}
   /* 사진은 보조 동작 — 보내기만 진한 색으로 두어 주 동작을 하나로 만듭니다.
      아래 ".입력칸 button" 규칙보다 우선하도록 선택자를 겹쳐 씁니다. */
@@ -110,7 +168,8 @@
   .판{position:fixed;inset:0;background:rgba(46,42,37,.42);display:flex;align-items:center;
       justify-content:center;padding:16px;z-index:10}
   .판 .속{background:var(--card);border-radius:16px;padding:20px 20px 0;max-width:420px;width:100%;
-      max-height:90vh;overflow-y:auto;border:1px solid var(--line)}
+      max-height:90vh;overflow-y:auto;border:1px solid var(--line);
+      box-shadow:0 18px 44px -12px rgba(46,42,37,.34)}
   /* 설문이 길어도 [시작하기]가 늘 보이도록 아래에 붙여둡니다 */
   .바닥{position:sticky;bottom:0;background:var(--card);padding-bottom:20px;
       box-shadow:0 -10px 14px -10px rgba(46,42,37,.18)}
@@ -158,15 +217,18 @@
 <div class="app">
   <header>
     <h1>하루핏</h1>
+    <button onclick="요약열기()">오늘</button>
     <button onclick="설정열기()">설정</button>
   </header>
-  <!-- 오늘 남은 양 — 한 줄에 네 가지 -->
-  <div class="영양띠">
+  <!-- 오늘 남은 양 — 한 줄에 네 가지. 눌러도 오늘 요약이 열립니다. -->
+  <div class="영양띠" onclick="요약열기()" title="오늘 요약 보기">
     <span>남은 <b id="남은칼로리">-</b><i>kcal</i></span>
     <span>단백질 <b id="남은단백질">-</b><i>g</i></span>
     <span>탄수 <b id="남은탄수">-</b><i>g</i></span>
     <span>지방 <b id="남은지방">-</b><i>g</i></span>
   </div>
+  <!-- 오늘 칼로리를 얼마나 채웠는지 — 머리말 아래 얇은 띠 하나로 -->
+  <div class="진행줄"><span id="진행칼로리" style="width:0%"></span></div>
 
   <div id="대화"></div>
 
@@ -251,6 +313,34 @@
     <div id="설문경고"></div>
     <button class="go" id="설문버튼" onclick="설문저장()">시작하기</button>
     <button class="go 보조 hide" id="설문취소" onclick="설문닫기()">그만두기</button>
+  </div>
+</div></div>
+
+
+<!-- ══════ 오늘 요약 ══════
+     먹은 칼로리와 탄단지를 목표와 나란히 보여줍니다.
+     화면은 여기서 만들지만, 목표 숫자는 data.js(C)의 기준값계산을 씁니다. -->
+<div class="판 hide" id="판-요약"><div class="속">
+  <h2 id="요약제목">오늘</h2>
+
+  <!-- 큰 숫자 하나 — 오늘 먹은 칼로리 -->
+  <div class="요약머리">
+    <div class="큰숫자"><b id="요약먹은">0</b><i>kcal</i></div>
+    <div class="요약곁말" id="요약한줄">아직 기록이 없습니다</div>
+  </div>
+
+  <!-- 탄단지 + 칼로리 막대 -->
+  <div id="요약막대"></div>
+
+  <!-- 오늘 먹은 것 -->
+  <label style="margin-top:18px">먹은 것</label>
+  <div id="요약목록"></div>
+
+  <!-- 어제와 비교 (어제 기록이 있을 때만) -->
+  <div id="요약어제"></div>
+
+  <div class="바닥">
+    <button class="go" onclick="요약닫기()">닫기</button>
   </div>
 </div></div>
 
@@ -446,9 +536,89 @@ function 숫자갱신(){
   };
   for(const id in 남은){
     const v = 남은[id];
-    document.getElementById(id).textContent = Number.isFinite(v) ? Math.round(v) : "-";
+    const 칸 = document.getElementById(id);
+    칸.textContent = Number.isFinite(v) ? Math.round(v) : "-";
+    칸.classList.toggle("넘음", Number.isFinite(v) && v < 0);   // 마이너스면 팥빛
   }
+
+  // 머리말 아래 얇은 띠 — 오늘 칼로리를 얼마나 채웠나
+  const 줄 = document.getElementById("진행칼로리");
+  const 비율 = 기준.목표kcal > 0 ? (합("kcal") / 기준.목표kcal) * 100 : 0;
+  줄.style.width = Math.min(100, Math.max(0, 비율)) + "%";
+  줄.classList.toggle("넘음", 비율 > 100);
 }
+
+/* ── 오늘 요약 ──────────────────────────────────────────
+   먹은 양을 목표와 나란히 보여줍니다. 남은 양(위쪽 띠)의 반대편입니다. */
+function 오늘합계(하루){
+  const 기록 = (하루 && Array.isArray(하루.기록)) ? 하루.기록 : [];
+  const 합 = 항목 => 기록.reduce((a,b)=>a+(b[항목]||0),0);
+  return { kcal:합("kcal"), 단백질:합("단백질"), 탄수화물:합("탄수화물"), 지방:합("지방"), 끼니수:기록.length };
+}
+
+function 막대하나(이름, 먹은, 목표, 단위){
+  const 비율 = 목표 > 0 ? (먹은 / 목표) * 100 : 0;
+  const 넘음 = 비율 > 100 ? "넘음" : "";
+  return '<div class="막대줄 ' + 넘음 + '">' +
+    '<div class="막대말"><em>' + 이름 + '</em>' +
+      '<span><b>' + Math.round(먹은) + '</b> / ' + Math.round(목표) + 단위 + '</span></div>' +
+    '<div class="막대"><span class="' + 넘음 + '" style="width:' +
+      Math.min(100, Math.max(0, 비율)) + '%"></span></div></div>';
+}
+
+function 요약그리기(){
+  if(!상태.프로필) return;
+  const 기준 = 기준값계산(상태.프로필);                       // ← data.js (C)
+  const 목표탄지 = 영양추정(기준.목표kcal, 기준.목표단백질);
+  const 오늘 = 오늘합계(상태.오늘);
+
+  document.getElementById("요약먹은").textContent = Math.round(오늘.kcal);
+
+  // 한 줄 요약 — 남았는지 넘었는지
+  const 남은kcal = 기준.목표kcal - 오늘.kcal;
+  document.getElementById("요약한줄").innerHTML =
+    오늘.끼니수 === 0 ? "아직 기록이 없습니다" :
+    (남은kcal >= 0
+      ? "목표 " + Math.round(기준.목표kcal) + "kcal 중 <b>" + Math.round(남은kcal) + "kcal</b> 남았습니다"
+      : "목표보다 <b>" + Math.round(-남은kcal) + "kcal</b> 더 드셨습니다") +
+    " · " + 오늘.끼니수 + "번 기록";
+
+  // 막대 네 개
+  document.getElementById("요약막대").innerHTML =
+    막대하나("칼로리",  오늘.kcal,     기준.목표kcal,      "kcal") +
+    막대하나("단백질",  오늘.단백질,   기준.목표단백질,    "g") +
+    막대하나("탄수화물", 오늘.탄수화물, 목표탄지.탄수화물,  "g") +
+    막대하나("지방",    오늘.지방,     목표탄지.지방,      "g");
+
+  // 먹은 것 목록
+  const 기록 = 상태.오늘.기록 || [];
+  document.getElementById("요약목록").innerHTML = 기록.length
+    ? 기록.map(m =>
+        '<div class="끼니"><span class="이름"></span>' +
+        '<span class="잔값"><b>' + (m.kcal||0) + '</b>kcal · 단 ' + (m.단백질||0) +
+        ' · 탄 ' + (m.탄수화물||0) + ' · 지 ' + (m.지방||0) + '</span></div>').join("")
+    : '<div class="빈칸말">채팅창에 먹은 것을 적으면 여기에 쌓입니다</div>';
+  // 음식 이름은 사용자가 친 글이라 textContent 로 넣습니다 (태그로 해석되지 않게)
+  document.querySelectorAll("#요약목록 .이름").forEach((칸, i) => { 칸.textContent = 기록[i].이름; });
+
+  // 어제와 비교
+  const 어제칸 = document.getElementById("요약어제");
+  if(상태.어제 && (상태.어제.기록||[]).length){
+    const 어제 = 오늘합계(상태.어제);
+    const 차 = Math.round(오늘.kcal - 어제.kcal);
+    어제칸.innerHTML = '<div class="어제줄">어제는 <b>' + Math.round(어제.kcal) + '</b>kcal 드셨습니다' +
+      (오늘.끼니수 === 0 ? "" :
+        " — 오늘은 " + (차 === 0 ? "같습니다" :
+          (차 > 0 ? "<b>" + 차 + "</b>kcal 많습니다" : "<b>" + (-차) + "</b>kcal 적습니다"))) + '</div>';
+  } else 어제칸.innerHTML = "";
+}
+
+function 요약열기(){
+  if(!상태.프로필) return;
+  요약그리기();
+  document.getElementById("판-요약").classList.remove("hide");
+}
+function 요약닫기(){ document.getElementById("판-요약").classList.add("hide"); }
 /* ── 위치 ──────────────────────────────────────────────
    주소를 적거나, [현재 위치]를 누르면 "현재위치" 로 저장합니다.
    실제 좌표 변환과 카카오 검색은 모두 data.js(C 담당)가 합니다.
