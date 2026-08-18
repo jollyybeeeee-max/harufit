@@ -251,8 +251,18 @@
   </div>
   <div class="안내">바꾸면 다음 답변부터 말투가 바뀝니다. 기록은 그대로 남습니다.</div>
 
+  <!-- 위치는 자주 바꾸게 되니 설문에 들어가지 않고 여기서 바로 처리합니다 -->
+  <label>위치</label>
+  <div class="안내" id="설정위치요약"></div>
+  <input type="text" id="설정위치" placeholder="강남역 3번 출구">
+  <div class="btns" style="margin-top:6px">
+    <button type="button" id="설정위치버튼" onclick="설정현재위치()">📍 현재 위치로</button>
+    <button type="button" onclick="설정주소로()">이 주소로</button>
+  </div>
+  <div class="안내" id="설정위치안내">근처 가게를 찾을 때 씁니다. 바꾸면 그 동네 가게를 새로 찾아옵니다.</div>
+
   <label>내 정보</label>
-  <button class="go 보조" style="margin-top:4px" onclick="설문열기()">목표 몸무게 · 못 먹는 것 · 위치 고치기</button>
+  <button class="go 보조" style="margin-top:4px" onclick="설문열기()">목표 몸무게 · 못 먹는 것 고치기</button>
   <div class="안내" id="프로필요약"></div>
 
   <label>AI 연결 (Claude API 키)</label>
@@ -411,7 +421,7 @@ function 위치허락받기(){
   return new Promise((성공, 실패) => {
     if(!navigator.geolocation) return 실패(new Error("이 브라우저는 위치 기능이 없습니다"));
     navigator.geolocation.getCurrentPosition(
-      () => 성공(true),
+      p => 성공({ 위도:p.coords.latitude, 경도:p.coords.longitude }),
       e => 실패(new Error(
         e.code === 1 ? "위치 권한이 꺼져 있습니다" :
         e.code === 3 ? "위치를 찾는 데 너무 오래 걸립니다" :
@@ -421,23 +431,106 @@ function 위치허락받기(){
   });
 }
 
+/* 좌표 → 동네 이름. "현재위치" 라는 글자만 보여주면 어디로 잡혔는지 알 수 없어서,
+   실제 주소를 찾아 함께 보여줍니다.
+   카카오 주소 변환을 씁니다 — data.js 가 services 라이브러리를 불러옵니다.
+   못 찾아도 위치 기능 자체는 그대로 동작합니다. */
+async function 동네이름얻기(위도, 경도){
+  if(typeof 카카오준비하기 !== "function") return "";
+  try{ await 카카오준비하기(); }catch(e){ return ""; }
+  return new Promise(성공 => {
+    try{
+      new window.kakao.maps.services.Geocoder().coord2Address(경도, 위도, (결과, 상태) => {
+        if(상태 !== window.kakao.maps.services.Status.OK || !결과 || !결과.length) return 성공("");
+        const r = 결과[0];
+        성공((r.road_address && r.road_address.address_name) ||
+             (r.address && r.address.address_name) || "");
+      });
+    }catch(e){ 성공(""); }
+  });
+}
+
+/* 화면에 보여줄 위치 한 줄 — "현재위치" 대신 실제 동네가 보이게 */
+function 위치보이기(프로필){
+  if(!프로필) return "";
+  if(프로필.위치 !== 현재위치표시) return 프로필.위치;
+  return 프로필.위치이름 ? "현재 위치 · " + 프로필.위치이름 : "현재 위치";
+}
+
+const 권한안내 = '주소창 왼쪽 <b>자물쇠 아이콘 → 위치 → 허용</b> 으로 켠 뒤 다시 눌러주세요.<br>' +
+                 '그냥 주소를 적으셔도 됩니다 — 그 동네로 찾아줍니다.';
+let 새위치이름 = "";       // 이번에 잡은 동네 이름. 저장할 때 프로필로 옮깁니다.
+
 async function 현재위치쓰기(){
   const 안내 = document.getElementById("위치안내");
   const 버튼 = document.getElementById("위치버튼");
   안내.textContent = "위치를 확인하는 중…";
   버튼.disabled = true;
   try{
-    await 위치허락받기();
+    const 좌표 = await 위치허락받기();
+    새위치이름 = await 동네이름얻기(좌표.위도, 좌표.경도);
     document.getElementById("위치").value = 현재위치표시;
-    안내.innerHTML = '<b style="color:#A85C2E">현재 위치를 쓰겠습니다.</b> ' +
-                     '저장하면 지금 있는 곳 근처 가게를 찾아옵니다.';
+    안내.innerHTML = '<b style="color:#A85C2E">지금 계신 곳' +
+      (새위치이름 ? " — " + 새위치이름 : "") + '</b><br>저장하면 이 근처 가게를 찾아옵니다.';
   }catch(e){
-    안내.innerHTML =
-      '<b style="color:#8C4520">' + e.message + '</b><br>' +
-      '주소창 왼쪽 <b>자물쇠 아이콘 → 위치 → 허용</b> 으로 켠 뒤 다시 눌러주세요.<br>' +
-      '그냥 주소를 적으셔도 됩니다 — 그 동네로 찾아줍니다.';
+    안내.innerHTML = '<b style="color:#8C4520">' + e.message + '</b><br>' + 권한안내;
   }
   버튼.disabled = false;
+}
+
+/* ── 설정에서 바로 위치 바꾸기 ──────────────────────────
+   설문을 다 열지 않아도 여기서 확인하고 바꿀 수 있습니다.
+   바꾸면 그 자리에서 근처 가게를 다시 찾아옵니다. */
+function 위치칸그리기(){
+  const p = 상태.프로필;
+  if(!p) return;
+  document.getElementById("설정위치요약").innerHTML = "지금 — <b>" + 위치보이기(p) + "</b>";
+  document.getElementById("설정위치").value = (p.위치 === 현재위치표시) ? (p.위치이름 || "") : p.위치;
+}
+
+async function 위치바꾸기(새위치, 새이름, 안내글){
+  상태.프로필.위치 = 새위치;
+  상태.프로필.위치이름 = 새이름 || "";
+  저장();
+  위치칸그리기();
+  프로필요약그리기();
+  const 안내 = document.getElementById("설정위치안내");
+  안내.textContent = "근처 가게를 찾는 중…";
+  const 이전 = 식당표.length;
+  try{
+    const 결과 = (typeof 주변갱신 === "function") ? await 주변갱신(새위치) : null;
+    안내.innerHTML = (결과 && 결과.바뀜)
+      ? '<b style="color:#A85C2E">' + 안내글 + '</b><br>근처 가게 ' + 결과.곳 + '곳을 찾았습니다.'
+      : '<b style="color:#8C4520">근처 가게를 못 찾았습니다.</b><br>' +
+        ((결과 && 결과.까닭) || "") + '<br>기존 목록 ' + 이전 + '곳을 그대로 씁니다.';
+  }catch(e){
+    안내.innerHTML = '<b style="color:#8C4520">근처 가게를 못 찾았습니다.</b><br>' + e.message;
+  }
+}
+
+async function 설정현재위치(){
+  const 버튼 = document.getElementById("설정위치버튼");
+  const 안내 = document.getElementById("설정위치안내");
+  안내.textContent = "위치를 확인하는 중…";
+  버튼.disabled = true;
+  try{
+    const 좌표 = await 위치허락받기();
+    const 이름 = await 동네이름얻기(좌표.위도, 좌표.경도);
+    await 위치바꾸기(현재위치표시, 이름, "지금 계신 곳" + (이름 ? " — " + 이름 : ""));
+  }catch(e){
+    안내.innerHTML = '<b style="color:#8C4520">' + e.message + '</b><br>' + 권한안내;
+  }
+  버튼.disabled = false;
+}
+
+async function 설정주소로(){
+  const 글 = document.getElementById("설정위치").value.trim();
+  if(!글){
+    document.getElementById("설정위치안내").innerHTML =
+      '<b style="color:#8C4520">주소를 적어주세요.</b> 예: 강남역 3번 출구';
+    return;
+  }
+  await 위치바꾸기(글, "", 글);
 }
 
 /* ── 주변 가게 새로 찾기 ── data.js 의 주변갱신()을 부릅니다.
@@ -755,9 +848,10 @@ function 설문열기(){
   document.getElementById("설문취소").classList.toggle("hide", !고치기);
   document.getElementById("설문경고").innerHTML = "";
 
+  새위치이름 = "";
   document.getElementById("위치안내").innerHTML =
     (상태.프로필 && 상태.프로필.위치 === 현재위치표시)
-      ? '지금은 <b style="color:#A85C2E">현재 위치</b>를 쓰고 있습니다. ' +
+      ? '지금은 <b style="color:#A85C2E">' + 위치보이기(상태.프로필) + '</b> 를 쓰고 있습니다.<br>' +
         '주소를 직접 적으면 그 동네로 바뀝니다.'
       : '근처 가게를 찾을 때 씁니다. [현재 위치]를 누르면 지금 있는 곳으로 찾습니다.';
 
@@ -814,6 +908,8 @@ function 설문저장(){
     못먹는것:[...document.querySelectorAll('#금기칸 input:checked')]
               .map(i=>i.value).filter(v=>v!=="없음"),
     위치:document.getElementById("위치").value,
+    위치이름:(document.getElementById("위치").value === 현재위치표시)
+             ? (새위치이름 || (고치기 ? 상태.프로필.위치이름 : "") || "") : "",
     말투:선택값("말투칸") || "엄마"
   };
   const 경고 = document.getElementById("설문경고");
@@ -875,6 +971,7 @@ function 설정열기(){
   document.querySelectorAll("#말투칸2 button").forEach(b=>
     b.classList.toggle("on", b.dataset.v === (상태.프로필 && 상태.프로필.말투)));
   프로필요약그리기();
+  위치칸그리기();
   연결상태그리기();
   document.getElementById("판-설정").classList.remove("hide");
 }
@@ -888,7 +985,7 @@ function 프로필요약그리기(){
     "지금 — " + (p.목표타입 || "체중 감량") + " · " + 몸무게 + "<br>" +
     (p.성별 || "남") + " · " + (p.나이 || "-") + "세 · " + p.키 + "cm · " +
     "못 먹는 것: " + (p.못먹는것.join(", ") || "없음") + " · " +
-    (p.위치 === 현재위치표시 ? "현재 위치 사용 중" : p.위치);
+    위치보이기(p);
 }
 function 설정닫기(){
   상태.키 = document.getElementById("키입력").value.trim();
