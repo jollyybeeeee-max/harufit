@@ -103,6 +103,28 @@
   .영양띠 b.넘음{color:var(--over);font-weight:700}
 
   /* ── 오늘 요약 ── */
+  /* ── 달력 ── */
+  .달력{border:1px solid var(--line);border-radius:11px;padding:10px 10px 8px;margin-bottom:16px}
+  .달머리{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .달머리 span{font-size:14px;font-weight:700;letter-spacing:-.2px}
+  .달넘김{font-family:inherit;font-size:17px;line-height:1;border:1px solid var(--line);
+       background:var(--card);color:var(--mut);border-radius:8px;padding:3px 11px;cursor:pointer}
+  .달넘김:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .달넘김:disabled{opacity:.3;cursor:default}
+  .요일줄,.날칸{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .요일줄 span{text-align:center;font-size:10px;color:var(--mut);padding-bottom:3px}
+  .날{position:relative;aspect-ratio:1;border:none;background:transparent;border-radius:8px;
+       font-family:inherit;font-size:12.5px;color:var(--ink);cursor:pointer;padding:0;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .날:disabled{color:var(--line);cursor:default}
+  .날:hover:not(:disabled){background:var(--fill)}
+  .날.오늘{font-weight:800;box-shadow:inset 0 0 0 1.5px var(--line)}
+  .날.고름{background:var(--accent);color:#fff;font-weight:800}
+  .날.고름 .점{background:#fff}
+  .날 .점{width:4px;height:4px;border-radius:50%;background:var(--accent)}
+  .날 .빈점{width:4px;height:4px}
+  .달안내{font-size:11.5px;color:var(--mut);text-align:center;margin-top:5px}
+
   .요약머리{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
        padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
   .큰숫자{display:flex;align-items:baseline;gap:4px}
@@ -287,11 +309,11 @@
 <div class="app">
   <header>
     <h1>하루<span>핏</span></h1>
-    <button onclick="요약열기()">오늘</button>
+    <button onclick="요약열기()">캘린더</button>
     <button onclick="설정열기()">설정</button>
   </header>
   <!-- 오늘 남은 양 — 한 줄에 네 가지. 눌러도 오늘 요약이 열립니다. -->
-  <div class="영양띠" onclick="요약열기()" title="오늘 요약 보기">
+  <div class="영양띠" onclick="요약열기()" title="캘린더 열기">
     <span><em id="말-남은칼로리">남은</em><b id="남은칼로리">-</b><i>kcal</i></span>
     <span><em id="말-남은단백질">단백질</em><b id="남은단백질">-</b><i>g</i></span>
     <span><em id="말-남은탄수">탄수</em><b id="남은탄수">-</b><i>g</i></span>
@@ -418,7 +440,18 @@
 <div class="판 hide" id="판-요약"><div class="속">
   <h2 id="요약제목">오늘</h2>
 
-  <!-- 큰 숫자 하나 — 오늘 먹은 칼로리 -->
+  <!-- 달력 — 기록이 있는 날에 점이 찍힙니다. 누르면 그날 먹은 것이 아래에 나옵니다. -->
+  <div class="달력">
+    <div class="달머리">
+      <button type="button" class="달넘김" onclick="달넘기기(-1)" aria-label="지난달">‹</button>
+      <span id="달이름"></span>
+      <button type="button" class="달넘김" onclick="달넘기기(1)" aria-label="다음달">›</button>
+    </div>
+    <div class="요일줄"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="날칸" id="날칸"></div>
+  </div>
+
+  <!-- 큰 숫자 하나 — 그날 먹은 칼로리 -->
   <div class="요약머리">
     <div class="큰숫자"><b id="요약먹은">0</b><i>kcal</i></div>
     <div class="요약곁말" id="요약한줄">아직 기록이 없습니다</div>
@@ -526,8 +559,26 @@ const 저장키 = "harufit-v2";
 /* 사전 — 사용자가 고친 값을 기억하는 곳입니다.
    { "치즈라면": {kcal:620, 단백질:18, 탄수화물:72, 지방:26}, ... }
    앱이 추정한 값보다 사용자가 고친 값이 항상 우선합니다. */
-let 상태 = { 프로필:null, 키:"", 사전:{},
+/* 지난날 — 날짜별로 먹은 것을 쌓아둡니다. 캘린더가 이걸 읽습니다.
+   { "2026-08-18": { 기록:[...], 컨디션, 일정 }, ... }
+   대화는 넣지 않습니다. 사진과 긴 글까지 쌓으면 저장 공간이 금방 찹니다. */
+let 상태 = { 프로필:null, 키:"", 사전:{}, 지난날:{},
              오늘:{ 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] } };
+
+const 보관일수 = 120;   // 넉 달치만 남깁니다
+
+function 하루보관(하루){
+  if(!하루 || !하루.날짜) return;
+  if(!상태.지난날) 상태.지난날 = {};
+  상태.지난날[하루.날짜] = {
+    기록: (하루.기록 || []).slice(),
+    컨디션: 하루.컨디션 != null ? 하루.컨디션 : null,
+    일정:   하루.일정   != null ? 하루.일정   : null
+  };
+  // 오래된 것부터 정리 — 저장 공간이 넘치면 앱이 아무것도 저장 못 합니다
+  const 날들 = Object.keys(상태.지난날).sort();
+  while(날들.length > 보관일수) delete 상태.지난날[날들.shift()];
+}
 let 보내는중 = false;
 
 function 오늘날짜(){ return new Date().toISOString().slice(0,10); }
@@ -535,6 +586,9 @@ function 오늘날짜(){ return new Date().toISOString().slice(0,10); }
 let 저장가능 = true;
 function 저장(){
   if(!저장가능) return;
+  // 오늘 것도 지난날에 같이 넣어둡니다 — 캘린더가 한 곳만 보면 되고,
+  // 자정을 넘겨도 오늘 먹은 게 사라지지 않습니다.
+  if(상태.오늘 && (상태.오늘.기록 || []).length) 하루보관(상태.오늘);
   try{ localStorage.setItem(저장키, JSON.stringify(상태)); }
   catch(e){ 저장가능 = false; console.warn("저장이 안 되는 환경입니다. 앱은 그대로 쓸 수 있습니다."); }
 }
@@ -567,8 +621,19 @@ function 불러오기(){
     }
     if(d.키) 상태.키 = d.키;
     if(d.사전 && typeof d.사전 === "object") 상태.사전 = d.사전;   // 사전이 없던 저장본도 그대로 열립니다
-    if(d.오늘 && d.오늘.날짜 === 오늘날짜()) 상태.오늘 = 오늘고치기(d.오늘);
-    else if(d.오늘) 상태.어제 = 오늘고치기(d.오늘);
+    if(d.지난날 && typeof d.지난날 === "object") 상태.지난날 = d.지난날;
+
+    if(d.오늘 && d.오늘.날짜 === 오늘날짜()){
+      상태.오늘 = 오늘고치기(d.오늘);
+    } else if(d.오늘){
+      /* 날짜가 바뀌었습니다. 예전에는 그냥 버렸는데, 이제 지난날에 넣어둡니다.
+         대화는 안 넣습니다 — 사진과 긴 글이 쌓여서 저장 공간이 금방 찹니다. */
+      const 지난 = 오늘고치기(d.오늘);
+      상태.어제 = 지난;                       // 요약의 "어제와 비교" 가 씁니다
+      if((지난.기록 || []).length) 하루보관(지난);
+    }
+    // 예전 저장본에만 있던 어제도 한 번 옮겨둡니다
+    if(d.어제 && (d.어제.기록||[]).length && !상태.지난날[d.어제.날짜]) 하루보관(오늘고치기(d.어제));
   }catch(e){ /* 깨진 저장본은 무시 */ }
 }
 
@@ -728,53 +793,131 @@ function 막대하나(이름, 먹은, 목표, 단위){
       Math.min(100, Math.max(0, 비율)) + '%"></span></div></div>';
 }
 
+/* ── 달력 ────────────────────────────────────────────
+   고른 날짜 하나만 기억하고, 그 날의 기록을 아래에 보여줍니다.
+   오늘은 상태.오늘 을, 지난날은 상태.지난날 을 읽습니다. */
+let 고른날 = 오늘날짜();
+let 보는달 = 오늘날짜().slice(0, 7);          // "2026-08"
+
+function 날짜글(d){
+  return d.getFullYear() + "-" +
+         String(d.getMonth() + 1).padStart(2, "0") + "-" +
+         String(d.getDate()).padStart(2, "0");
+}
+/* 그 날의 기록을 꺼냅니다. 오늘은 살아있는 값을, 지난날은 보관한 값을 씁니다. */
+function 하루읽기(날짜){
+  if(날짜 === 오늘날짜()) return 상태.오늘;
+  const 보관 = (상태.지난날 || {})[날짜];
+  return 보관 ? { 날짜, 기록:보관.기록 || [], 컨디션:보관.컨디션, 일정:보관.일정, 대화:[] }
+              : { 날짜, 기록:[], 컨디션:null, 일정:null, 대화:[] };
+}
+function 하루칼로리(날짜){
+  return 하루읽기(날짜).기록.reduce((a,b) => a + (b.kcal || 0), 0);
+}
+
+function 달력그리기(){
+  const [해, 달] = 보는달.split("-").map(Number);
+  document.getElementById("달이름").textContent = 해 + "년 " + 달 + "월";
+
+  const 첫날 = new Date(해, 달 - 1, 1);
+  const 끝날 = new Date(해, 달, 0).getDate();
+  const 빈칸 = 첫날.getDay();                  // 1일이 무슨 요일인지
+  const 오늘 = 오늘날짜();
+
+  let html = "";
+  for(let i = 0; i < 빈칸; i++) html += '<button type="button" class="날" disabled></button>';
+  for(let 일 = 1; 일 <= 끝날; 일++){
+    const 날짜 = 날짜글(new Date(해, 달 - 1, 일));
+    const 있음 = 하루읽기(날짜).기록.length > 0;
+    const 앞날 = 날짜 > 오늘;                  // 아직 오지 않은 날은 못 누릅니다
+    html += '<button type="button" class="날' +
+            (날짜 === 오늘 ? " 오늘" : "") +
+            (날짜 === 고른날 ? " 고름" : "") + '"' +
+            (앞날 ? " disabled" : ' onclick="날고르기(\'' + 날짜 + '\')"') + '>' +
+            일 + '<span class="' + (있음 ? "점" : "빈점") + '"></span></button>';
+  }
+  document.getElementById("날칸").innerHTML = html;
+
+  // 다음 달 버튼은 이번 달을 넘어가면 잠급니다
+  document.querySelectorAll(".달넘김")[1].disabled = (보는달 >= 오늘.slice(0,7));
+}
+
+function 달넘기기(방향){
+  const [해, 달] = 보는달.split("-").map(Number);
+  const d = new Date(해, 달 - 1 + 방향, 1);
+  const 새달 = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  if(새달 > 오늘날짜().slice(0,7)) return;     // 앞선 달로는 안 넘어갑니다
+  보는달 = 새달;
+  달력그리기();
+}
+
+function 날고르기(날짜){
+  고른날 = 날짜;
+  달력그리기();
+  요약그리기();
+}
+
+/* ── 고른 날의 요약 ── */
 function 요약그리기(){
   if(!상태.프로필) return;
   const 기준 = 기준값계산(상태.프로필);                       // ← data.js (C)
   const 목표탄지 = 영양추정(기준.목표kcal, 기준.목표단백질);
-  const 오늘 = 오늘합계(상태.오늘);
+  const 오늘임 = (고른날 === 오늘날짜());
+  const 하루 = 하루읽기(고른날);
+  const 합 = 오늘합계(하루);
 
-  document.getElementById("요약먹은").textContent = Math.round(오늘.kcal);
+  // 제목 — 오늘이면 "오늘", 아니면 날짜
+  const [ , 달, 일] = 고른날.split("-");
+  document.getElementById("요약제목").textContent =
+    오늘임 ? "오늘" : (Number(달) + "월 " + Number(일) + "일");
 
-  // 한 줄 요약 — 남았는지 넘었는지
-  const 남은kcal = 기준.목표kcal - 오늘.kcal;
+  document.getElementById("요약먹은").textContent = Math.round(합.kcal);
+
+  const 남은kcal = 기준.목표kcal - 합.kcal;
   document.getElementById("요약한줄").innerHTML =
-    오늘.끼니수 === 0 ? "아직 기록이 없습니다" :
+    합.끼니수 === 0 ? (오늘임 ? "아직 기록이 없습니다" : "이 날은 기록이 없습니다") :
     (남은kcal >= 0
       ? "목표 " + Math.round(기준.목표kcal) + "kcal 중 <b>" + Math.round(남은kcal) + "kcal</b> 남았습니다"
       : "목표보다 <b>" + Math.round(-남은kcal) + "kcal</b> 더 드셨습니다") +
-    " · " + 오늘.끼니수 + "번 기록";
+    " · " + 합.끼니수 + "번 기록";
 
-  // 막대 네 개
   document.getElementById("요약막대").innerHTML =
-    막대하나("칼로리",  오늘.kcal,     기준.목표kcal,      "kcal") +
-    막대하나("단백질",  오늘.단백질,   기준.목표단백질,    "g") +
-    막대하나("탄수화물", 오늘.탄수화물, 목표탄지.탄수화물,  "g") +
-    막대하나("지방",    오늘.지방,     목표탄지.지방,      "g");
+    막대하나("칼로리",  합.kcal,     기준.목표kcal,     "kcal") +
+    막대하나("단백질",  합.단백질,   기준.목표단백질,   "g") +
+    막대하나("탄수화물", 합.탄수화물, 목표탄지.탄수화물, "g") +
+    막대하나("지방",    합.지방,     목표탄지.지방,     "g");
 
-  // 먹은 것 목록 — 줄을 누르면 고칠 수 있습니다
-  const 기록 = 상태.오늘.기록 || [];
+  /* 먹은 것 — 오늘만 고칠 수 있습니다.
+     지난날은 보관본이라 고치면 그날의 사실이 바뀌어 버립니다. */
+  const 기록 = 하루.기록 || [];
   document.getElementById("요약목록").innerHTML = 기록.length
     ? 기록.map((m, i) =>
-        '<div class="끼니" onclick="끼니고치기열기(' + i + ')" title="눌러서 고치기">' +
+        '<div class="끼니"' +
+        (오늘임 ? ' onclick="끼니고치기열기(' + i + ')" title="눌러서 고치기"' :
+                  ' style="cursor:default"') + '>' +
         '<span class="이름"></span>' +
         '<span class="잔값"><b>' + (m.kcal||0) + '</b>kcal · 단 ' + (m.단백질||0) +
         ' · 탄 ' + (m.탄수화물||0) + ' · 지 ' + (m.지방||0) +
         (m.내가고침 ? ' <em class="고침표">고침</em>' : '') + '</span></div>').join("")
-    : '<div class="빈칸말">채팅창에 먹은 것을 적으면 여기에 쌓입니다</div>';
+    : '<div class="빈칸말">' +
+      (오늘임 ? "채팅창에 먹은 것을 적으면 여기에 쌓입니다" : "이 날은 기록이 없습니다") + '</div>';
   // 음식 이름은 사용자가 친 글이라 textContent 로 넣습니다 (태그로 해석되지 않게)
   document.querySelectorAll("#요약목록 .이름").forEach((칸, i) => { 칸.textContent = 기록[i].이름; });
 
-  // 어제와 비교
-  const 어제칸 = document.getElementById("요약어제");
-  if(상태.어제 && (상태.어제.기록||[]).length){
-    const 어제 = 오늘합계(상태.어제);
-    const 차 = Math.round(오늘.kcal - 어제.kcal);
-    어제칸.innerHTML = '<div class="어제줄">어제는 <b>' + Math.round(어제.kcal) + '</b>kcal 드셨습니다' +
-      (오늘.끼니수 === 0 ? "" :
-        " — 오늘은 " + (차 === 0 ? "같습니다" :
+  // 하루 전과 비교
+  const 앞칸 = document.getElementById("요약어제");
+  const 앞날 = 날짜글(new Date(new Date(고른날 + "T00:00:00").getTime() - 86400000));
+  const 앞합 = 오늘합계(하루읽기(앞날));
+  if(앞합.끼니수){
+    const 차 = Math.round(합.kcal - 앞합.kcal);
+    const 앞이름 = (앞날 === 오늘날짜()) ? "오늘" :
+                   (앞날 === 날짜글(new Date(Date.now() - 86400000)) ? "어제"
+                    : (Number(앞날.split("-")[1]) + "월 " + Number(앞날.split("-")[2]) + "일"));
+    앞칸.innerHTML = '<div class="어제줄">' + 앞이름 + 은는(앞이름) + ' <b>' + Math.round(앞합.kcal) + '</b>kcal 드셨습니다' +
+      (합.끼니수 === 0 ? "" :
+        " — " + (오늘임 ? "오늘은 " : "이 날은 ") + (차 === 0 ? "같습니다" :
           (차 > 0 ? "<b>" + 차 + "</b>kcal 많습니다" : "<b>" + (-차) + "</b>kcal 적습니다"))) + '</div>';
-  } else 어제칸.innerHTML = "";
+  } else 앞칸.innerHTML = "";
 }
 
 /* 한 줄을 고치는 칸을 그 자리에 펼칩니다 */
@@ -827,6 +970,9 @@ function 끼니지우기(번호){
 
 function 요약열기(){
   if(!상태.프로필) return;
+  고른날 = 오늘날짜();                 // 열 때는 항상 오늘부터
+  보는달 = 고른날.slice(0, 7);
+  달력그리기();
   요약그리기();
   document.getElementById("판-요약").classList.remove("hide");
 }
@@ -1237,6 +1383,14 @@ const 집운동표 = [
 /* "무릎가" 처럼 나오지 않게 조사만 돌려줍니다.
    (talk.js 의 조사() 는 낱말까지 붙여서 돌려주는 함수라 여기서는 안 씁니다)
    한글 받침은 (글자코드 - 0xAC00) % 28 이 0 이 아니면 있는 것입니다. */
+function 은는(단어){
+  const 글 = String(단어 || "");
+  if(!글) return "는";
+  const 끝 = 글.charCodeAt(글.length - 1);
+  if(끝 >= 0x30 && 끝 <= 0x39) return "31".includes(글[글.length-1]) ? "은" : "는";  // 숫자로 끝나면
+  if(끝 < 0xAC00 || 끝 > 0xD7A3) return "는";
+  return ((끝 - 0xAC00) % 28) ? "은" : "는";
+}
 function 이가(단어){
   const 글 = String(단어 || "");
   if(!글) return "가";
