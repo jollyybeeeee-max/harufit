@@ -328,8 +328,13 @@
     <button class="사진버튼" id="사진버튼" onclick="사진고르기()" title="음식 사진 올리기">📷</button>
     <input type="file" id="사진칸" accept="image/*" capture="environment"
            style="display:none" onchange="사진골랐다(this)">
+    <!-- 한글은 마지막 글자가 "조합 중"인 상태로 남아 있습니다.
+         그때 엔터를 받으면 보내고 나서 조합이 끝나며 그 글자가 빈 칸에 다시 들어갑니다.
+         ("출출해" 를 보냈는데 "해" 가 남아 한 번 더 보내지던 문제)
+         isComposing / keyCode 229 는 "아직 조합 중"이라는 표시입니다. -->
     <input type="text" id="입력" placeholder="제육덮밥 / 오늘 야근이야 / 단백질 뭐로 채워?"
-           onkeydown="if(event.key==='Enter')보내기()" autocomplete="off">
+           onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) 보내기()"
+           autocomplete="off">
     <button id="보내기버튼" onclick="보내기()">보내기</button>
   </div>
 
