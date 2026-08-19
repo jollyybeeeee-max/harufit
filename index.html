@@ -157,6 +157,8 @@
   .끼니{cursor:pointer;border-radius:7px;transition:background .15s}
   .끼니:hover{background:var(--fill)}
   .끼니.고치는중{background:var(--accent-l)}
+  .인분표{font-style:normal;font-size:10px;color:var(--accent-d);background:var(--accent-l);
+       border-radius:20px;padding:1px 6px;margin-right:3px;letter-spacing:0;font-family:var(--sans)}
   .고침표{font-style:normal;font-size:9.5px;color:var(--accent-d);border:1px solid var(--accent);
        border-radius:20px;padding:1px 5px;margin-left:4px;letter-spacing:0}
   .고치기칸{background:var(--fill);border:1px solid var(--line);border-radius:10px;
@@ -908,7 +910,9 @@ function 요약그리기(){
         (오늘임 ? ' onclick="끼니고치기열기(' + i + ')" title="눌러서 고치기"' :
                   ' style="cursor:default"') + '>' +
         '<span class="이름"></span>' +
-        '<span class="잔값"><b>' + (m.kcal||0) + '</b>kcal · 단 ' + (m.단백질||0) +
+        '<span class="잔값">' +
+        (인분값(m) !== 1 ? '<em class="인분표">' + 인분글(인분값(m)) + '</em> ' : '') +
+        '<b>' + (m.kcal||0) + '</b>kcal · 단 ' + (m.단백질||0) +
         ' · 탄 ' + (m.탄수화물||0) + ' · 지 ' + (m.지방||0) +
         (m.내가고침 ? ' <em class="고침표">고침</em>' : '') + '</span></div>').join("")
     : '<div class="빈칸말">' +
@@ -945,6 +949,13 @@ function 끼니고치기열기(번호){
   칸.className = "고치기칸";
   칸.innerHTML =
     '<label>이름</label><input type="text" id="고치기이름">' +
+    '<label style="margin-top:8px">얼마나 먹었나</label>' +
+    '<div class="btns" id="인분칸">' +
+      [0.5, 1, 1.5, 2].map(v =>
+        '<button type="button" data-v="' + v + '"' +
+        (v === 인분값(m) ? ' class="on"' : '') +
+        ' onclick="인분바꾸기(this,' + 번호 + ')">' + 인분글(v) + '</button>').join("") +
+    '</div>' +
     '<div class="row 넷" style="margin-top:6px">' +
       '<div><label>kcal</label><input type="number" id="고치기kcal" value="' + (m.kcal||0) + '"></div>' +
       '<div><label>단백질<i>g</i></label><input type="number" id="고치기단백질" value="' + (m.단백질||0) + '"></div>' +
@@ -961,15 +972,49 @@ function 끼니고치기열기(번호){
   document.getElementById("고치기이름").value = m.이름;   // 이름은 값으로 넣습니다 (태그 해석 방지)
 }
 
+/* ── 먹은 양 (인분) ──────────────────────────────────
+   C 의 음식표가 "1인분 기준 대략값" 이라 인분이 곧 배수입니다.
+   그램을 쓰려면 음식 120개마다 1인분이 몇 g인지가 있어야 하는데 그 값이 없습니다. */
+function 인분값(끼니){ return (끼니 && 끼니.인분) ? 끼니.인분 : 1; }
+function 인분글(v){ return (v === 1) ? "1인분" : (String(v) + "인분"); }
+
+/* 인분을 누르면 그 자리에서 칼로리·탄단지를 다시 계산해 칸에 넣습니다.
+   1인분일 때의 값을 늘 기준으로 삼아야 0.5 → 2 로 바꿔도 어긋나지 않습니다. */
+function 인분바꾸기(버튼, 번호){
+  const 칸 = document.getElementById("인분칸");
+  칸.querySelectorAll("button").forEach(b => b.classList.remove("on"));
+  버튼.classList.add("on");
+
+  const m = (상태.오늘.기록 || [])[번호];
+  if(!m) return;
+  const 새인분 = Number(버튼.dataset.v) || 1;
+  const 한인분 = m.한인분 || {                       // 없으면 지금 값을 1인분으로 봅니다
+    kcal:Math.round((m.kcal||0) / 인분값(m)),
+    단백질:Math.round((m.단백질||0) / 인분값(m)),
+    탄수화물:Math.round((m.탄수화물||0) / 인분값(m)),
+    지방:Math.round((m.지방||0) / 인분값(m))
+  };
+  const 넣기 = (id, 값) => { document.getElementById(id).value = Math.round(값 * 새인분); };
+  넣기("고치기kcal",   한인분.kcal);
+  넣기("고치기단백질", 한인분.단백질);
+  넣기("고치기탄수",   한인분.탄수화물);
+  넣기("고치기지방",   한인분.지방);
+}
+
 function 끼니저장(번호){
   const 기록 = 상태.오늘.기록 || [];
   if(!기록[번호]) return;
   const 숫자 = id => Math.max(0, Math.round(+document.getElementById(id).value || 0));
   const 이름 = document.getElementById("고치기이름").value.trim() || 기록[번호].이름;
+  const 인분 = Number(선택값("인분칸")) || 1;
   const 고친것 = { 이름, kcal:숫자("고치기kcal"), 단백질:숫자("고치기단백질"),
-                   탄수화물:숫자("고치기탄수"), 지방:숫자("고치기지방"), 내가고침:true };
+                   탄수화물:숫자("고치기탄수"), 지방:숫자("고치기지방"),
+                   인분, 내가고침:true };
+  // 1인분일 때의 값을 같이 남깁니다. 나중에 인분만 바꿔도 다시 계산할 수 있습니다.
+  고친것.한인분 = { kcal:Math.round(고친것.kcal / 인분), 단백질:Math.round(고친것.단백질 / 인분),
+                    탄수화물:Math.round(고친것.탄수화물 / 인분), 지방:Math.round(고친것.지방 / 인분) };
   기록[번호] = 고친것;
-  사전에넣기(이름, 고친것);        // ← 다음에 같은 이름을 적으면 이 값을 씁니다
+  사전에넣기(이름, 고친것.한인분);  // 사전에는 늘 1인분 값을 넣습니다
   저장(); 숫자갱신(); 요약그리기();
 }
 
@@ -1423,7 +1468,19 @@ const 집운동표 = [
   { 이름:"계단 오르기",       분:12, 조심:["무릎"], 찾을말:"계단 오르기 운동 효과 자세" },
   { 이름:"누워서 다리 들기",   분:8,  조심:["허리"], 찾을말:"레그레이즈 초보 자세" },
   { 이름:"가볍게 산책",       분:15, 조심:[],       찾을말:"걷기 운동 자세 바르게" },
-  { 이름:"발목·손목 풀기",     분:5,  조심:[],       찾을말:"손목 발목 스트레칭 따라하기" }
+  { 이름:"발목·손목 풀기",     분:5,  조심:[],       찾을말:"손목 발목 스트레칭 따라하기" },
+
+  // ── 여기서부터 8개는 나중에 늘린 것 ──
+  // 무릎·허리를 둘 다 등록하면 고를 게 6개뿐이라, 안 걸리는 것 위주로 채웠습니다.
+  // 책상에서 되는 것과 5분짜리를 넣었습니다 — 야근 잦은 사무직이 쓰는 앱이라서요.
+  { 이름:"종아리 들기",       분:5,  조심:[],       찾을말:"종아리 들기 카프레이즈 자세" },
+  { 이름:"팔 크게 돌리기",     분:5,  조심:[],       찾을말:"팔 돌리기 어깨 스트레칭" },
+  { 이름:"앉아서 다리 뻗기",   분:5,  조심:[],       찾을말:"앉아서 하는 스트레칭 사무실" },
+  { 이름:"등·허리 늘리기",     분:8,  조심:[],       찾을말:"고양이 자세 등 스트레칭" },
+  { 이름:"코어 조이기",       분:5,  조심:[],       찾을말:"드로인 코어 호흡 초보" },
+  { 이름:"점핑잭",            분:8,  조심:["무릎"], 찾을말:"점핑잭 자세 초보" },
+  { 이름:"앉았다 일어서기",    분:8,  조심:["무릎"], 찾을말:"의자 앉았다 일어서기 운동" },
+  { 이름:"슈퍼맨",            분:8,  조심:["허리"], 찾을말:"슈퍼맨 운동 자세 초보" }
 ];
 
 /* 영상은 검색 결과로 보냅니다. 특정 영상 주소를 박아두면
