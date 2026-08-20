@@ -276,6 +276,22 @@
   /* 버튼 안에 들어가는 부가 설명 — "가끔" 아래 "주 1~2회" */
   .btns button i{display:block;font-style:normal;font-size:9.5px;opacity:.65;margin-top:1px}
   .btns{display:flex;gap:8px;margin-top:5px}
+  /* 자주 먹는 것 — 채팅창 바로 위. 가로로 넘치면 옆으로 밉니다 */
+  .자주칸{display:flex;gap:6px;overflow-x:auto;padding:0 14px 6px;
+       scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .자주칸::-webkit-scrollbar{display:none}
+  .자주칸:empty{display:none}
+  .자주칸 button{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+       font-family:inherit;text-align:left;background:var(--card);border:1px solid var(--line);
+       border-radius:12px;padding:7px 12px;cursor:pointer;line-height:1.35}
+  .자주칸 button:hover{border-color:var(--accent);background:var(--accent-l)}
+  .자주칸 button b{font-weight:600;font-size:13px;color:var(--ink)}
+  .자주칸 button i{font-style:normal;font-size:11px;color:var(--mut);font-family:var(--num)}
+  /* 버튼에 없는 인분을 직접 넣는 칸 */
+  .인분직접{display:flex;align-items:center;gap:7px;margin-top:7px}
+  .인분직접 label{font-size:11.5px;color:var(--mut);margin:0}
+  .인분직접 input{width:74px;text-align:center}
+  .인분직접 span{font-size:12px;color:var(--mut)}
   .btns.감싸기{flex-wrap:wrap}
   /* 캐릭터 9명 — 한 줄에 세 명씩. 그림은 A 가 그려준 것입니다. */
   .btns.캐릭터칸{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -338,6 +354,9 @@
 
   <div id="대화"></div>
 
+  <!-- 자주 먹는 것 — 세 번 이상 적은 음식이 여기 뜹니다. 누르면 바로 기록됩니다 -->
+  <div class="자주칸" id="자주칸"></div>
+
   <div class="입력칸">
     <button class="사진버튼" id="사진버튼" onclick="사진고르기()" title="음식 사진 올리기">📷</button>
     <input type="file" id="사진칸" accept="image/*" capture="environment"
@@ -346,7 +365,7 @@
          그때 엔터를 받으면 보내고 나서 조합이 끝나며 그 글자가 빈 칸에 다시 들어갑니다.
          ("출출해" 를 보냈는데 "해" 가 남아 한 번 더 보내지던 문제)
          isComposing / keyCode 229 는 "아직 조합 중"이라는 표시입니다. -->
-    <input type="text" id="입력" placeholder="제육덮밥 / 오늘 야근이야 / 단백질 뭐로 채워?"
+    <input type="text" id="입력" placeholder="제육덮밥 / 오늘 야근이야 / 셋이서 나눠 먹었어"
            onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) 보내기()"
            autocomplete="off">
     <button id="보내기버튼" onclick="보내기()">보내기</button>
@@ -587,7 +606,7 @@ const 저장키 = "harufit-v2";
 /* 지난날 — 날짜별로 먹은 것을 쌓아둡니다. 캘린더가 이걸 읽습니다.
    { "2026-08-18": { 기록:[...], 컨디션, 일정 }, ... }
    대화는 넣지 않습니다. 사진과 긴 글까지 쌓으면 저장 공간이 금방 찹니다. */
-let 상태 = { 프로필:null, 키:"", 사전:{}, 지난날:{},
+let 상태 = { 프로필:null, 키:"", 사전:{}, 지난날:{}, 자주:{},
              오늘:{ 날짜:오늘날짜(), 컨디션:null, 일정:null, 기록:[], 대화:[] } };
 
 const 보관일수 = 120;   // 넉 달치만 남깁니다
@@ -651,6 +670,7 @@ function 불러오기(){
     }
     if(d.키) 상태.키 = d.키;
     if(d.사전 && typeof d.사전 === "object") 상태.사전 = d.사전;   // 사전이 없던 저장본도 그대로 열립니다
+    if(d.자주 && typeof d.자주 === "object") 상태.자주 = d.자주;   // 자주 먹는 것이 없던 저장본도 마찬가지
     if(d.지난날 && typeof d.지난날 === "object") 상태.지난날 = d.지난날;
 
     if(d.오늘 && d.오늘.날짜 === 오늘날짜()){
@@ -803,6 +823,9 @@ function 숫자갱신(){
   const 비율 = 기준.목표kcal > 0 ? (합("kcal") / 기준.목표kcal) * 100 : 0;
   줄.style.width = Math.min(100, Math.max(0, 비율)) + "%";
   줄.classList.toggle("넘음", 비율 > 100);
+
+  // 자주 먹는 것도 같이 다시 그립니다 — 숫자가 바뀌는 자리가 곧 기록이 바뀌는 자리입니다
+  if(typeof 자주그리기 === "function") 자주그리기();
 }
 
 /* ── 오늘 요약 ──────────────────────────────────────────
@@ -984,6 +1007,13 @@ function 끼니고치기열기(번호){
         (v === 인분값(m) ? ' class="on"' : '') +
         ' onclick="인분바꾸기(this,' + 번호 + ')">' + 인분글(v) + '</button>').join("") +
     '</div>' +
+    /* 버튼에 없는 값(0.33인분처럼 나눠 먹은 경우)을 직접 넣을 수 있게 둡니다 */
+    '<div class="인분직접">' +
+      '<label for="인분직접값">직접</label>' +
+      '<input type="number" id="인분직접값" step="0.1" min="0.1" max="10" ' +
+             'value="' + 인분값(m) + '" oninput="인분직접바꾸기(' + 번호 + ')">' +
+      '<span>인분</span>' +
+    '</div>' +
     '<div class="row 넷" style="margin-top:6px">' +
       '<div><label>kcal</label><input type="number" id="고치기kcal" value="' + (m.kcal||0) + '"></div>' +
       '<div><label>단백질<i>g</i></label><input type="number" id="고치기단백질" value="' + (m.단백질||0) + '"></div>' +
@@ -1000,11 +1030,161 @@ function 끼니고치기열기(번호){
   document.getElementById("고치기이름").value = m.이름;   // 이름은 값으로 넣습니다 (태그 해석 방지)
 }
 
+/* ── 자주 먹는 것 ────────────────────────────────────
+   같은 걸 반복해서 먹는 사람이 대부분입니다. 매번 타이핑하게 두면
+   기록이 끊깁니다 (K4 — 한 건에 10초 이하).
+   그래서 세 번 이상 적은 음식은 채팅창 위에 버튼으로 띄우고,
+   누르면 그때 먹던 양 그대로 기록됩니다.
+
+   ※ 사전(고친 값 기억)과는 다른 것입니다 —
+     사전은 "이 이름은 이 숫자다", 자주는 "이걸 자주 먹더라". */
+const 자주보일개수 = 4;
+const 자주기준횟수 = 3;      // 세 번은 적어야 "자주"로 봅니다
+
+function 자주기록(끼니){
+  if(!끼니 || !끼니.이름) return;
+  if(!상태.자주) 상태.자주 = {};
+  const 전 = 상태.자주[끼니.이름] || { 횟수:0 };
+  상태.자주[끼니.이름] = {
+    횟수:   전.횟수 + 1,
+    마지막: 오늘날짜(),
+    인분:   인분값(끼니),
+    kcal:   끼니.kcal, 단백질:끼니.단백질,
+    탄수화물:끼니.탄수화물, 지방:끼니.지방
+  };
+  // 너무 많이 쌓이지 않게 — 횟수가 적고 오래된 것부터 버립니다
+  const 이름들 = Object.keys(상태.자주);
+  if(이름들.length > 40){
+    이름들.sort((a,b) => (상태.자주[a].횟수 - 상태.자주[b].횟수) ||
+                         String(상태.자주[a].마지막).localeCompare(상태.자주[b].마지막));
+    while(Object.keys(상태.자주).length > 40) delete 상태.자주[이름들.shift()];
+  }
+}
+
+/* 많이 먹은 순 → 같으면 최근 순. 오늘 이미 적은 것은 뒤로 뺍니다 */
+function 자주목록(){
+  const 오늘것 = new Set((상태.오늘.기록 || []).map(m => m.이름));
+  return Object.keys(상태.자주 || {})
+    .filter(이름 => 상태.자주[이름].횟수 >= 자주기준횟수)
+    .sort((a,b) => {
+      const A = 상태.자주[a], B = 상태.자주[b];
+      return (오늘것.has(a) - 오늘것.has(b)) ||
+             (B.횟수 - A.횟수) ||
+             String(B.마지막).localeCompare(String(A.마지막));
+    })
+    .slice(0, 자주보일개수);
+}
+
+function 자주그리기(){
+  const 칸 = document.getElementById("자주칸");
+  if(!칸) return;
+  if(!상태.프로필){ 칸.innerHTML = ""; return; }
+  const 목록 = 자주목록();
+  칸.innerHTML = 목록.map(이름 => {
+    const f = 상태.자주[이름];
+    const 인분표 = (f.인분 && f.인분 !== 1) ? " " + 인분글(f.인분) : "";
+    return '<button type="button" onclick="자주탭(this)" data-이름="' + 이름 + '">' +
+           '<b></b><i>' + f.kcal + 'kcal' + 인분표 + '</i></button>';
+  }).join("");
+  // 음식 이름은 사용자가 친 글이라 textContent 로 넣습니다
+  칸.querySelectorAll("button").forEach((b, i) => {
+    b.querySelector("b").textContent = 목록[i];
+  });
+}
+
+/* 누르면 그때 먹던 그대로 기록됩니다 — 타이핑 없이 한 번에 */
+function 자주탭(버튼){
+  const 이름 = 버튼.dataset.이름;
+  const f = 상태.자주[이름];
+  if(!f) return;
+  const 끼니 = { 이름, kcal:f.kcal, 단백질:f.단백질, 탄수화물:f.탄수화물, 지방:f.지방 };
+  if(f.인분 && f.인분 !== 1) 끼니.인분 = f.인분;
+  상태.오늘.기록.push(끼니);
+  자주기록(끼니);
+  저장(); 숫자갱신(); 자주그리기();
+  내말(이름 + ((f.인분 && f.인분 !== 1) ? " " + 인분글(f.인분) : ""));
+  앱말(캐릭터문장(상태.프로필, "기록", { 메뉴:이름, kcal:f.kcal }));   // ← talk.js
+  채움카드();
+}
+
 /* ── 먹은 양 (인분) ──────────────────────────────────
    C 의 음식표가 "1인분 기준 대략값" 이라 인분이 곧 배수입니다.
    그램을 쓰려면 음식 120개마다 1인분이 몇 g인지가 있어야 하는데 그 값이 없습니다. */
 function 인분값(끼니){ return (끼니 && 끼니.인분) ? 끼니.인분 : 1; }
 function 인분글(v){ return (v === 1) ? "1인분" : (String(v) + "인분"); }
+
+/* ── 말에서 먹은 양 알아듣기 ────────────────────────────
+   "제육덮밥 반만 먹었어" 의 "반만" 을 0.5인분으로 봅니다.
+   음식표가 1인분 기준이라 인분이 곧 배수입니다.
+
+   ※ 위에서부터 순서대로 맞춰봅니다 — "조금 남겼어" 처럼 두 개가 겹치면
+     먼저 걸린 것을 씁니다. 어느 쪽이든 0.5라 결과는 같습니다. */
+const 양규칙 = [
+  [/곱빼기|곱배기|두\s*그릇|두\s*공기|두\s*개|세\s*그릇/, 2],
+  [/많이|잔뜩|실컷|배부르게|과식|폭풍/,                   1.5],
+  [/반\s*만|반\s*그릇|반\s*공기|반\s*개|절반|반\s*정도/,  0.5],
+  [/다\s*못\s*먹|남겼|남기고|덜\s*먹|조금만\s*먹/,        0.5],
+  [/조금|살짝|약간|한\s*입|맛만|쪼끔|쬐끔/,               0.5]
+];
+function 양찾기(글){
+  const 글자 = String(글 || "");
+  const 숫자 = 글자.match(/(\d+(?:\.\d+)?)\s*인분/);
+  if(숫자){ const v = Number(숫자[1]); if(v > 0 && v <= 5) return v; }
+  for(const [규칙, 배수] of 양규칙) if(규칙.test(글자)) return 배수;
+  return null;
+}
+
+/* ── 나눠 먹었을 때 ────────────────────────────────────
+   "셋이서 먹었어" → 한 접시를 셋이 나눈 것으로 보고 1/3 인분.
+   삼겹살 · 피자 · 치킨처럼 우리 사용자가 자주 먹는 게 대부분 나눠 먹는 것입니다.
+
+   ★ "같이 먹었어" 는 세지 않습니다 — 같이 먹었다고 나눠 먹은 건 아닙니다.
+     각자 한 그릇씩 먹은 경우가 더 많아서, 잘못 세면 칼로리가 반토막 납니다.
+     "나눠 먹었다"가 분명한 말만 셉니다. */
+const 사람수말 = { 둘:2, 두:2, 셋:3, 세:3, 넷:4, 네:4, 다섯:5, 여섯:6 };
+function 나눔찾기(글){
+  const 글자 = String(글 || "");
+  if(/혼자/.test(글자)) return null;                       // "혼자 먹었어" 는 나눈 게 아닙니다
+  /* "2인분" 의 "2인" 을 사람 수로 읽으면 안 됩니다.
+     그래서 명·사람은 그냥 받고, "인" 은 뒤에 "이서" 가 붙을 때만 받습니다. */
+  const 숫자 = 글자.match(/(\d+)\s*(?:명|사람)/) || 글자.match(/(\d+)\s*인\s*이서/);
+  if(숫자){ const n = Number(숫자[1]); if(n >= 2 && n <= 10) return n; }
+  const 한글 = 글자.match(/(둘|두|셋|세|넷|네|다섯|여섯)\s*(?:명|사람)?\s*이서/);
+  if(한글) return 사람수말[한글[1]] || null;
+  // 사람 수를 안 말하고 나눠 먹었다고만 하면 둘로 봅니다
+  if(/나눠\s*먹|나눠서|나눔|반씩|쉐어|share/i.test(글자)) return 2;
+  return null;
+}
+
+/* 양과 나눔을 합쳐 최종 인분을 냅니다.
+   "삼겹살 2인분 셋이서 먹었어" → 2인분 ÷ 3명 = 0.67인분 */
+function 먹은양찾기(글){
+  const 양   = 양찾기(글);
+  const 사람 = 나눔찾기(글);
+  if(!양 && !사람) return null;
+  return Math.round(((양 || 1) / (사람 || 1)) * 100) / 100;
+}
+
+/* 기록 한 건에 인분을 적용합니다.
+   1인분일 때의 값을 따로 남겨야 0.5 → 2 로 바꿔도 어긋나지 않습니다
+   (설정의 인분바꾸기와 같은 규칙입니다). */
+function 인분적용(끼니, 새인분){
+  const 이전 = 인분값(끼니);
+  const 한인분 = 끼니.한인분 || {
+    kcal:     (끼니.kcal     || 0) / 이전,
+    단백질:   (끼니.단백질   || 0) / 이전,
+    탄수화물: (끼니.탄수화물 || 0) / 이전,
+    지방:     (끼니.지방     || 0) / 이전
+  };
+  끼니.한인분 = { kcal:Math.round(한인분.kcal), 단백질:Math.round(한인분.단백질),
+                  탄수화물:Math.round(한인분.탄수화물), 지방:Math.round(한인분.지방) };
+  끼니.인분     = 새인분;
+  끼니.kcal     = Math.round(한인분.kcal     * 새인분);
+  끼니.단백질   = Math.round(한인분.단백질   * 새인분);
+  끼니.탄수화물 = Math.round(한인분.탄수화물 * 새인분);
+  끼니.지방     = Math.round(한인분.지방     * 새인분);
+  return 끼니;
+}
 
 /* 인분을 누르면 그 자리에서 칼로리·탄단지를 다시 계산해 칸에 넣습니다.
    1인분일 때의 값을 늘 기준으로 삼아야 0.5 → 2 로 바꿔도 어긋나지 않습니다. */
@@ -1027,6 +1207,35 @@ function 인분바꾸기(버튼, 번호){
   넣기("고치기단백질", 한인분.단백질);
   넣기("고치기탄수",   한인분.탄수화물);
   넣기("고치기지방",   한인분.지방);
+
+  const 직접 = document.getElementById("인분직접값");
+  if(직접) 직접.value = 새인분;                     // 직접 칸도 같이 맞춰둡니다
+}
+
+/* 버튼에 없는 인분을 직접 넣었을 때 — 버튼과 같은 계산을 씁니다.
+   나눠 먹으면 0.33 · 0.25 처럼 버튼에 없는 값이 자주 나옵니다. */
+function 인분직접바꾸기(번호){
+  const 칸 = document.getElementById("인분직접값");
+  const 새인분 = Number(칸.value);
+  if(!Number.isFinite(새인분) || 새인분 <= 0) return;   // 다 지우는 중이면 가만히 둡니다
+
+  const m = (상태.오늘.기록 || [])[번호];
+  if(!m) return;
+  const 한인분 = m.한인분 || {
+    kcal:Math.round((m.kcal||0) / 인분값(m)),
+    단백질:Math.round((m.단백질||0) / 인분값(m)),
+    탄수화물:Math.round((m.탄수화물||0) / 인분값(m)),
+    지방:Math.round((m.지방||0) / 인분값(m))
+  };
+  const 넣기 = (id, 값) => { document.getElementById(id).value = Math.round(값 * 새인분); };
+  넣기("고치기kcal",   한인분.kcal);
+  넣기("고치기단백질", 한인분.단백질);
+  넣기("고치기탄수",   한인분.탄수화물);
+  넣기("고치기지방",   한인분.지방);
+
+  // 버튼과 값이 같으면 그 버튼을 켜고, 아니면 전부 끕니다
+  document.querySelectorAll("#인분칸 button").forEach(b =>
+    b.classList.toggle("on", Number(b.dataset.v) === 새인분));
 }
 
 function 끼니저장(번호){
@@ -1034,7 +1243,12 @@ function 끼니저장(번호){
   if(!기록[번호]) return;
   const 숫자 = id => Math.max(0, Math.round(+document.getElementById(id).value || 0));
   const 이름 = document.getElementById("고치기이름").value.trim() || 기록[번호].이름;
-  const 인분 = Number(선택값("인분칸")) || 1;
+  /* 직접 넣은 값이 있으면 그게 우선입니다 — 버튼에 없는 인분을 쓰려고 만든 칸이라
+     버튼 값을 먼저 보면 직접 넣은 게 무시됩니다. */
+  const 직접칸 = document.getElementById("인분직접값");
+  const 직접값 = 직접칸 ? Number(직접칸.value) : NaN;
+  const 인분 = (Number.isFinite(직접값) && 직접값 > 0) ? 직접값
+             : (Number(선택값("인분칸")) || 1);
   const 고친것 = { 이름, kcal:숫자("고치기kcal"), 단백질:숫자("고치기단백질"),
                    탄수화물:숫자("고치기탄수"), 지방:숫자("고치기지방"),
                    인분, 내가고침:true };
@@ -1042,6 +1256,7 @@ function 끼니저장(번호){
   고친것.한인분 = { kcal:Math.round(고친것.kcal / 인분), 단백질:Math.round(고친것.단백질 / 인분),
                     탄수화물:Math.round(고친것.탄수화물 / 인분), 지방:Math.round(고친것.지방 / 인분) };
   기록[번호] = 고친것;
+  자주기록(고친것);
   사전에넣기(이름, 고친것.한인분);  // 사전에는 늘 1인분 값을 넣습니다
   저장(); 숫자갱신(); 요약그리기();
 }
@@ -1369,6 +1584,7 @@ function 간식먹기(버튼, 이름){
   if(!m) return;
   상태.오늘.기록.push(영양채우기({ 이름:m.이름, kcal:m.kcal, 단백질:m.단백질,
                                     탄수화물:m.탄수화물, 지방:m.지방 }));
+  자주기록(상태.오늘.기록[상태.오늘.기록.length - 1]);
   저장(); 숫자갱신();
   앱말(캐릭터문장(상태.프로필, "기록", {메뉴:m.이름, kcal:m.kcal}));
 }
@@ -2059,6 +2275,40 @@ async function 답받기(글, 사진){
       : "먹어도 괜찮아. 대신 국물이나 튀김옷만 좀 남기면 훨씬 나아.");
   }
 
+  /* ── 먹은 양 ──
+     "제육덮밥" 이라고 적은 뒤 "반만 먹었어" 라고 고쳐 말하면
+     전에는 제육덮밥이 두 번 기록됐습니다. 이제 세 갈래로 갈립니다 —
+       ① 양만 말했다        → 직전 기록의 양을 고친다
+       ② 같은 음식 + 양      → 두 번 달지 않고 그것을 고친다
+       ③ 새 음식 + 양        → 그 양으로 새로 단다
+     ②를 양이 있을 때만 하는 이유 — 양 없이 같은 걸 두 번 적으면
+     진짜로 두 번 먹은 것일 수 있어서 그대로 둡니다. */
+  const 먹은양 = 사진 ? null : 먹은양찾기(글);
+  let 양고침 = null;
+  if(먹은양 && !안기록){
+    const 새것   = 결과.음식 || [];
+    const 마지막 = 상태.오늘.기록[상태.오늘.기록.length - 1];
+    const 같은것 = 새것.length === 1 && 마지막 && 마지막.이름 === 새것[0].이름;
+
+    if(마지막 && (새것.length === 0 || 같은것)){          // ① · ②
+      양고침 = 인분적용(마지막, 먹은양);
+      자주기록(양고침);                                 // 고친 양으로 기억을 갱신합니다
+      결과.음식 = [];
+      결과.종류 = "기타";
+      결과.답 = 코치말("양수정",
+        (존대() ? 양고침.이름 + " " + 인분글(먹은양) + "으로 고쳤어요. 대략 " + 양고침.kcal + "kcal예요."
+                : 양고침.이름 + " " + 인분글(먹은양) + "으로 고쳤어. 대략 " + 양고침.kcal + "kcal."),
+        { 메뉴:양고침.이름, 인분:인분글(먹은양), kcal:양고침.kcal });
+      저장(); 숫자갱신();
+    } else if(새것.length){                               // ③ — 답에 미리 반영합니다
+      const 합 = 새것.reduce((a,b) => a + Math.round((b.kcal || 0) * 먹은양), 0);
+      결과.답 = 캐릭터문장(상태.프로필, "기록", {          // ← talk.js
+        메뉴: 새것.map(m => m.이름).join(", ") + " " + 인분글(먹은양),
+        kcal: 합
+      }) || 결과.답;
+    }
+  }
+
   // 3. 출력 검사 — AI 답에 금지어가 있으면 갈아끼운다
   /* 입력검사와 같습니다 — 프로필을 넘겨야 갈아끼운 문장이 말투체를 따릅니다. */
   const 검사 = 출력검사(결과.답 || "", 상태.프로필);            // ← talk.js
@@ -2079,9 +2329,18 @@ async function 답받기(글, 사진){
         바뀐이름 = 사전이름;
       }
     }
+    const 단자리 = 상태.오늘.기록.length;
     음식들.forEach(m => {
       상태.오늘.기록.push(영양채우기(m));   // AI 가 탄수·지방을 줬으면 그 값을 그대로 씁니다
     });
+    /* 말에 양이 있었으면 방금 단 것에 반영합니다.
+       영양채우기 뒤에 해야 탄수·지방까지 같이 줄어듭니다
+       (영양채우기가 새 객체를 만들어서 인분 칸이 날아가기 때문입니다). */
+    if(먹은양 && !양고침){
+      for(let i = 단자리; i < 상태.오늘.기록.length; i++) 인분적용(상태.오늘.기록[i], 먹은양);
+    }
+    // 자주 먹는 것으로 세어둡니다 (인분까지 반영된 뒤에 세야 그 양이 기억됩니다)
+    for(let i = 단자리; i < 상태.오늘.기록.length; i++) 자주기록(상태.오늘.기록[i]);
     /* 앱은 "라면"이라고 답했는데 기록은 "치즈라면"으로 들어가면 어긋나 보입니다.
        그래서 바뀌었을 때만 한 줄 덧붙입니다. */
     if(바뀐이름){
@@ -2186,6 +2445,7 @@ function 메뉴탭(메뉴){
   if(!m) return;
   상태.오늘.기록.push(영양채우기({ 이름:메뉴, kcal:m.kcal, 단백질:m.단백질,
                                     탄수화물:m.탄수화물, 지방:m.지방 }));
+  자주기록(상태.오늘.기록[상태.오늘.기록.length - 1]);
   저장(); 숫자갱신();
   앱말(캐릭터문장(상태.프로필, "기록", {메뉴:메뉴, kcal:m.kcal}));
 }
