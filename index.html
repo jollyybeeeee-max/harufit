@@ -170,7 +170,10 @@
   .끼니{display:flex;justify-content:space-between;align-items:center;gap:10px;
        padding:9px 11px;border-bottom:1px dashed var(--line);font-size:14px}
   .끼니:last-child{border-bottom:none}
-  .끼니 .이름{flex:1;word-break:break-word}
+  .끼니 .이름칸{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+  .끼니 .이름{word-break:break-word}
+  /* 언제 먹었나 — 이름 아래 작게. 지난 기록에 시각이 없으면 아예 안 보입니다 */
+  .끼니 .때표{font-style:normal;font-size:10.5px;color:var(--mut);font-family:var(--num);letter-spacing:0}
   .끼니 .잔값{font-family:var(--num);font-size:11.5px;color:var(--mut);white-space:nowrap}
   .끼니 .잔값 b{font-weight:400;color:var(--ink);font-size:13.5px}
   .끼니{cursor:pointer;border-radius:7px;transition:background .15s}
@@ -638,7 +641,41 @@ function 하루보관(하루){
 }
 let 보내는중 = false;
 
-function 오늘날짜(){ return new Date().toISOString().slice(0,10); }
+/* ★ 반드시 그 사람이 있는 곳의 날짜여야 합니다.
+   toISOString() 은 UTC 라, 한국(UTC+9)에서는 자정부터 오전 9시까지
+   하루 전 날짜를 돌려줬습니다. 그 시간에 적은 야식이 어제 기록으로 들어가고,
+   달력은 오늘을 칠하는데 기록은 어제에 쌓여서 서로 어긋났습니다.
+   달력이 쓰는 날짜글() 과 같은 방식(로컬 기준)으로 맞춥니다. */
+function 오늘날짜(){
+  const d = new Date();
+  return d.getFullYear() + "-" +
+         String(d.getMonth() + 1).padStart(2, "0") + "-" +
+         String(d.getDate()).padStart(2, "0");
+}
+
+/* ── 지금 몇 시인가 ──────────────────────────────────
+   기록에 시각이 없어서 아침·점심·저녁·야식을 구분하지 못했습니다.
+   기획서의 사용자는 "퇴근 시간이 정하는" 사람이라 끼니 시간이 곧 상황입니다.
+
+   자정~새벽 5시는 "야식" 으로 봅니다 — 날짜는 이미 넘어갔지만
+   그 사람에게는 아직 어제의 연장입니다. */
+function 지금분(){ const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+function 시각글(분){
+  const m = (분 == null) ? 지금분() : 분;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+function 끼니때(분){
+  const h = Math.floor(((분 == null) ? 지금분() : 분) / 60);
+  if(h >= 5  && h < 11) return "아침";
+  if(h >= 11 && h < 16) return "점심";
+  if(h >= 16 && h < 22) return "저녁";
+  return "야식";
+}
+/* talk.js 에 넘길 때만 시각을 얹습니다.
+   상태.오늘 에 직접 넣으면 저장본에 계속 쌓여서, 부를 때마다 새로 만듭니다. */
+function 지금붙이기(하루){
+  return Object.assign({}, 하루, { 지금:시각글(), 끼니때:끼니때() });
+}
 
 let 저장가능 = true;
 function 저장(){
@@ -764,13 +801,16 @@ function 영양채우기(끼니){
      "치즈라면"을 한 번 620kcal 로 고쳐두면 다음부터 620 으로 들어갑니다. */
   const 기억 = 사전찾기(끼니.이름);
   if(기억) return { 이름:끼니.이름, kcal:기억.kcal, 단백질:기억.단백질,
-                    탄수화물:기억.탄수화물, 지방:기억.지방, 내가고침:true };
+                    탄수화물:기억.탄수화물, 지방:기억.지방, 내가고침:true,
+                    시각:(끼니.시각 != null) ? 끼니.시각 : 지금분() };
 
   const 추정 = 영양추정(끼니.kcal, 끼니.단백질);
   return {
     이름: 끼니.이름, kcal: 끼니.kcal || 0, 단백질: 끼니.단백질 || 0,
     탄수화물: (끼니.탄수화물 != null) ? 끼니.탄수화물 : 추정.탄수화물,
-    지방:     (끼니.지방     != null) ? 끼니.지방     : 추정.지방
+    지방:     (끼니.지방     != null) ? 끼니.지방     : 추정.지방,
+    // 새로 다는 기록에는 늘 시각을 남깁니다 (지난 기록에 없으면 그냥 안 보입니다)
+    시각: (끼니.시각 != null) ? 끼니.시각 : 지금분()
   };
 }
 
@@ -973,7 +1013,10 @@ function 요약그리기(){
         '<div class="끼니"' +
         (오늘임 ? ' onclick="끼니고치기열기(' + i + ')" title="눌러서 고치기"' :
                   ' style="cursor:default"') + '>' +
-        '<span class="이름"></span>' +
+        '<span class="이름칸">' +
+          '<span class="이름"></span>' +
+          (m.시각 != null ? '<em class="때표">' + 끼니때(m.시각) + ' ' + 시각글(m.시각) + '</em>' : '') +
+        '</span>' +
         '<span class="잔값">' +
         (인분값(m) !== 1 ? '<em class="인분표">' + 인분글(인분값(m)) + '</em> ' : '') +
         '<b>' + (m.kcal||0) + '</b>kcal · 단 ' + (m.단백질||0) +
@@ -1112,7 +1155,7 @@ function 자주탭(버튼){
   const 이름 = 버튼.dataset.이름;
   const f = 상태.자주[이름];
   if(!f) return;
-  const 끼니 = { 이름, kcal:f.kcal, 단백질:f.단백질, 탄수화물:f.탄수화물, 지방:f.지방 };
+  const 끼니 = { 이름, kcal:f.kcal, 단백질:f.단백질, 탄수화물:f.탄수화물, 지방:f.지방, 시각:지금분() };
   if(f.인분 && f.인분 !== 1) 끼니.인분 = f.인분;
   상태.오늘.기록.push(끼니);
   자주기록(끼니);
@@ -2231,13 +2274,13 @@ async function 답받기(글, 사진){
   let 결과;
   try{
     // 2. AI 호출 (키가 있으면) 또는 규칙으로 답하기
-    결과 = 상태.키 ? await AI에게물어보기(글, 사진) : 규칙으로답하기(글, 상태.프로필, 상태.오늘);
+    결과 = 상태.키 ? await AI에게물어보기(글, 사진) : 규칙으로답하기(글, 상태.프로필, 지금붙이기(상태.오늘));
   }catch(e){
     console.warn("AI 호출 실패 — 규칙으로 대신합니다:", e.message);
     결과 = 사진
       ? { 종류:"기타", 음식:[], 컨디션:null, 일정:null,
           답:"사진을 못 알아봤어. 뭘 먹었는지 글로 적어줄래?" }
-      : 규칙으로답하기(글, 상태.프로필, 상태.오늘);            // ← talk.js
+      : 규칙으로답하기(글, 상태.프로필, 지금붙이기(상태.오늘));   // ← talk.js
   }
   기다림.remove();
 
@@ -2435,7 +2478,7 @@ async function AI에게물어보기(글, 사진){
         effort: "low",
         format: { type: "json_schema", schema: 답변형식 }        // ← talk.js
       },
-      system: 시스템지시문(상태.프로필, 상태.오늘),               // ← talk.js
+      system: 시스템지시문(상태.프로필, 지금붙이기(상태.오늘)),               // ← talk.js
       messages: 최근
     })
   });
