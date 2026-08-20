@@ -123,6 +123,14 @@
   .날.고름 .점{background:#fff}
   .날 .점{width:4px;height:4px;border-radius:50%;background:var(--accent)}
   .날 .빈점{width:4px;height:4px}
+  /* 야근한 날 — 오른쪽 위 구석. 가운데 아래 기록 점과 안 겹칩니다 */
+  .날 .야근점{position:absolute;top:4px;right:4px;width:4px;height:4px;border-radius:50%;background:var(--over)}
+  .날.고름 .야근점{background:#fff}
+  /* 그날의 컨디션 · 일정 */
+  .상황칩{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .상황칩 span{font-size:11.5px;padding:3px 11px;border-radius:20px;
+       background:var(--fill);color:var(--mut);border:1px solid var(--line)}
+  .상황칩 span.센것{background:#FDEEEA;color:var(--over-d);border-color:#F3C8C0}
   .달안내{font-size:11.5px;color:var(--mut);text-align:center;margin-top:5px}
 
   .요약머리{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
@@ -470,6 +478,9 @@
     <div class="큰숫자"><b id="요약먹은">0</b><i>kcal</i></div>
     <div class="요약곁말" id="요약한줄">아직 기록이 없습니다</div>
   </div>
+
+  <!-- 그날의 컨디션 · 일정 — 넣은 날만 보입니다 -->
+  <div class="상황칩" id="요약상황"></div>
 
   <!-- 탄단지 + 칼로리 막대 -->
   <div id="요약막대"></div>
@@ -847,13 +858,16 @@ function 달력그리기(){
   for(let i = 0; i < 빈칸; i++) html += '<button type="button" class="날" disabled></button>';
   for(let 일 = 1; 일 <= 끝날; 일++){
     const 날짜 = 날짜글(new Date(해, 달 - 1, 일));
-    const 있음 = 하루읽기(날짜).기록.length > 0;
+    const 하루 = 하루읽기(날짜);
+    const 있음 = 하루.기록.length > 0;
+    const 야근 = 하루.일정 === "야근";          // 오른쪽 위에 따로 표시합니다
     const 앞날 = 날짜 > 오늘;                  // 아직 오지 않은 날은 못 누릅니다
     html += '<button type="button" class="날' +
             (날짜 === 오늘 ? " 오늘" : "") +
             (날짜 === 고른날 ? " 고름" : "") + '"' +
             (앞날 ? " disabled" : ' onclick="날고르기(\'' + 날짜 + '\')"') + '>' +
-            일 + '<span class="' + (있음 ? "점" : "빈점") + '"></span></button>';
+            일 + '<span class="' + (있음 ? "점" : "빈점") + '"></span>' +
+            (야근 ? '<span class="야근점"></span>' : "") + '</button>';
   }
   document.getElementById("날칸").innerHTML = html;
 
@@ -899,6 +913,15 @@ function 요약그리기(){
       ? "목표 " + Math.round(기준.목표kcal) + "kcal 중 <b>" + Math.round(남은kcal) + "kcal</b> 남았습니다"
       : "목표보다 <b>" + Math.round(-남은kcal) + "kcal</b> 더 드셨습니다") +
     " · " + 합.끼니수 + "번 기록";
+
+  /* 그날의 컨디션·일정 — 안 넣은 날은 아무것도 안 보입니다.
+     기획서 P1(상황 대응) — 야근한 날과 평범한 날이 달랐다는 게 여기서 보입니다.
+     피곤·야근은 눈에 띄게, 나머지는 담담하게 둡니다. */
+  const 상황 = [];
+  if(하루.컨디션) 상황.push({ 글:"컨디션 " + 하루.컨디션, 센것:하루.컨디션 === "피곤" });
+  if(하루.일정)   상황.push({ 글:하루.일정,               센것:하루.일정   === "야근" });
+  document.getElementById("요약상황").innerHTML =
+    상황.map(s => '<span class="' + (s.센것 ? "센것" : "") + '">' + s.글 + '</span>').join("");
 
   document.getElementById("요약막대").innerHTML =
     막대하나("칼로리",  합.kcal,     기준.목표kcal,     "kcal") +
