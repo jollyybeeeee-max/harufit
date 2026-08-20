@@ -156,8 +156,10 @@
        border-radius:3px;transition:width .45s ease}
   .막대 span.넘음{background:var(--over)}
 
-  .끼니{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-       padding:9px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  /* 좌우 여백이 없으면 누를 때 뜨는 배경에 글씨가 딱 붙습니다.
+     글자 크기가 서로 달라(이름 14px · 값 11.5px) baseline 으로는 어긋나 보여 가운데로 맞춥니다. */
+  .끼니{display:flex;justify-content:space-between;align-items:center;gap:10px;
+       padding:9px 11px;border-bottom:1px dashed var(--line);font-size:14px}
   .끼니:last-child{border-bottom:none}
   .끼니 .이름{flex:1;word-break:break-word}
   .끼니 .잔값{font-family:var(--num);font-size:11.5px;color:var(--mut);white-space:nowrap}
@@ -287,11 +289,13 @@
   .자주칸 button:hover{border-color:var(--accent);background:var(--accent-l)}
   .자주칸 button b{font-weight:600;font-size:13px;color:var(--ink)}
   .자주칸 button i{font-style:normal;font-size:11px;color:var(--mut);font-family:var(--num)}
-  /* 버튼에 없는 인분을 직접 넣는 칸 */
-  .인분직접{display:flex;align-items:center;gap:7px;margin-top:7px}
-  .인분직접 label{font-size:11.5px;color:var(--mut);margin:0}
-  .인분직접 input{width:74px;text-align:center}
-  .인분직접 span{font-size:12px;color:var(--mut)}
+  /* 인분 — 버튼 4개와 직접 입력칸을 한 줄에 둡니다 */
+  .인분줄{display:flex;align-items:center;gap:7px;margin-top:5px}
+  .인분줄 .btns{flex:1;margin-top:0;gap:5px;min-width:0}
+  .인분줄 .btns button{padding:9px 2px;font-size:13px}
+  .인분직접{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+  .인분직접 input{width:56px;text-align:center;padding:8px 4px;font-size:13px}
+  .인분직접 span{font-size:11.5px;color:var(--mut);white-space:nowrap}
   .btns.감싸기{flex-wrap:wrap}
   /* 캐릭터 9명 — 한 줄에 세 명씩. 그림은 A 가 그려준 것입니다. */
   .btns.캐릭터칸{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -1001,18 +1005,20 @@ function 끼니고치기열기(번호){
   칸.innerHTML =
     '<label>이름</label><input type="text" id="고치기이름">' +
     '<label style="margin-top:8px">얼마나 먹었나</label>' +
-    '<div class="btns" id="인분칸">' +
-      [0.5, 1, 1.5, 2].map(v =>
-        '<button type="button" data-v="' + v + '"' +
-        (v === 인분값(m) ? ' class="on"' : '') +
-        ' onclick="인분바꾸기(this,' + 번호 + ')">' + 인분글(v) + '</button>').join("") +
-    '</div>' +
-    /* 버튼에 없는 값(0.33인분처럼 나눠 먹은 경우)을 직접 넣을 수 있게 둡니다 */
-    '<div class="인분직접">' +
-      '<label for="인분직접값">직접</label>' +
-      '<input type="number" id="인분직접값" step="0.1" min="0.1" max="10" ' +
-             'value="' + 인분값(m) + '" oninput="인분직접바꾸기(' + 번호 + ')">' +
-      '<span>인분</span>' +
+    /* 자주 쓰는 값은 버튼으로, 나눠 먹어서 0.33 같은 값이 나오면 오른쪽 칸에 직접.
+       한 줄에 들어가도록 버튼은 숫자만 쓰고 "인분" 은 맨 끝에 한 번만 붙입니다. */
+    '<div class="인분줄">' +
+      '<div class="인분직접">' +
+        '<input type="number" id="인분직접값" step="0.1" min="0.1" max="10" ' +
+               'value="' + 인분값(m) + '" oninput="인분직접바꾸기(' + 번호 + ')">' +
+        '<span>인분</span>' +
+      '</div>' +
+      '<div class="btns" id="인분칸">' +
+        [0.5, 1, 1.5, 2].map(v =>
+          '<button type="button" data-v="' + v + '"' +
+          (v === 인분값(m) ? ' class="on"' : '') +
+          ' onclick="인분바꾸기(this,' + 번호 + ')">' + v + '</button>').join("") +
+      '</div>' +
     '</div>' +
     '<div class="row 넷" style="margin-top:6px">' +
       '<div><label>kcal</label><input type="number" id="고치기kcal" value="' + (m.kcal||0) + '"></div>' +
