@@ -140,6 +140,7 @@
   .상황칩 span{font-size:11.5px;padding:3px 11px;border-radius:20px;
        background:var(--fill);color:var(--mut);border:1px solid var(--line)}
   .상황칩 span.센것{background:#FDEEEA;color:var(--over-d);border-color:#F3C8C0}
+  .상황칩 span.운동칩{background:var(--accent-l);color:var(--accent-d);border-color:var(--accent)}
   .달안내{font-size:11.5px;color:var(--mut);text-align:center;margin-top:5px}
 
   .요약머리{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
@@ -1080,8 +1081,13 @@ function 요약그리기(){
   const 상황 = [];
   if(하루.컨디션) 상황.push({ 글:"컨디션 " + 하루.컨디션, 센것:하루.컨디션 === "피곤" });
   if(하루.일정)   상황.push({ 글:하루.일정,               센것:하루.일정   === "야근" });
+  /* 한 운동은 화면 한참 아래에 있어서 안 보인다는 말이 나왔습니다.
+     여기 큰 숫자 바로 밑에 한 줄로 요약해 둡니다. 자세한 건 아래 목록에 그대로 있습니다. */
+  const 운동요약 = 오늘운동합계(하루);
+  if(운동요약.횟수) 상황.push({ 글:"운동 " + 운동요약.분 + "분 · " + 운동요약.kcal + "kcal", 운동:true });
   document.getElementById("요약상황").innerHTML =
-    상황.map(s => '<span class="' + (s.센것 ? "센것" : "") + '">' + s.글 + '</span>').join("");
+    상황.map(s => '<span class="' + (s.센것 ? "센것" : (s.운동 ? "운동칩" : "")) + '">' +
+                  s.글 + '</span>').join("");
 
   document.getElementById("요약막대").innerHTML =
     막대하나("칼로리",  합.kcal,     기준.목표kcal,     "kcal") +
@@ -2222,6 +2228,7 @@ function 하루정리카드(){
     :     코치말("정리적당", 존 ? "오늘은 목표 안에서 잘 맞추셨어요."
                               : "오늘은 목표 안에서 잘 맞췄어.");
 
+  const 운동합 = 오늘운동합계(상태.오늘);
   const 할일 = 할일고르기(합, 기준);
   const 때   = 끼니때();
   const 낮   = (때 === "아침" || 때 === "점심");     // 아직 오늘이 남아 있는 시간
@@ -2258,6 +2265,8 @@ function 하루정리카드(){
         먹은 + ' / ' + 기준.목표kcal + 'kcal · 단백질 ' +
         Math.round(합.단백질) + ' / ' + 기준.목표단백질 + 'g · ' + 합.끼니수 + '번 기록' +
       '</div>' +
+      /* 운동한 날은 여기서도 짚어줍니다 — 하루를 되짚는 자리니까요 */
+      (운동합.횟수 ? '<div class="곳줄">운동 ' + 운동합.분 + '분 · ' + 운동합.kcal + 'kcal</div>' : '') +
     '</div>' +
     (낮 ? "" :
     '<div class="묶음 간식버튼 정리버튼">' +
