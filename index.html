@@ -1066,7 +1066,7 @@ function 요약그리기(){
     합.끼니수 === 0 ? (오늘임 ? "아직 기록이 없습니다" : "이 날은 기록이 없습니다") :
     (남은kcal >= 0
       ? "목표 " + Math.round(기준.목표kcal) + "kcal 중 <b>" + Math.round(남은kcal) + "kcal</b> 남았습니다"
-      : "목표보다 <b>" + Math.round(-남은kcal) + "kcal</b> 더 드셨습니다") +
+      : "목표보다 <b>" + Math.round(-남은kcal) + "kcal</b> 많습니다") +
     " · " + 합.끼니수 + "번 기록";
 
   /* 그날의 컨디션·일정 — 안 넣은 날은 아무것도 안 보입니다.
@@ -1141,19 +1141,20 @@ function 요약그리기(){
   운동칸.innerHTML = 운동합.횟수
     ? '<label style="margin-top:18px">한 운동</label>' +
       (하루.운동 || []).map((e, i) =>
-        '<div class="끼니 운동기록"' +
-        (오늘임 ? ' onclick="운동지우기(' + i + ')" title="눌러서 지우기"' : ' style="cursor:default"') + '>' +
+        '<div class="끼니 운동기록" data-번호="' + i + '"' +
+        (오늘임 ? ' onclick="운동고치기열기(' + i + ')" title="눌러서 고치기"' : ' style="cursor:default"') + '>' +
           '<span class="이름칸"><span class="이름"></span>' +
             (e.시각 != null ? '<em class="때표">' + 시각글(e.시각) + '</em>' : '') +
           '</span>' +
           '<span class="잔값">' + (e.분 || 0) + '분 · <b>' + (e.kcal || 0) + '</b>kcal</span>' +
         '</div>').join("") +
       '<div class="안내" style="margin-top:6px">대략 ' + 운동합.kcal +
-      'kcal · ' + 운동합.분 + '분. <b>목표 칼로리에는 더하지 않습니다</b> — 운동 소모는 사람마다 차이가 커서요.</div>'
+      'kcal · ' + 운동합.분 + '분 · <b>목표에는 더하지 않습니다</b></div>'
     : "";
   // 운동 이름도 사용자가 친 글이라 textContent 로 넣습니다
-  운동칸.querySelectorAll(".운동기록 .이름").forEach((칸, i) => {
-    칸.textContent = (하루.운동 || [])[i].이름;
+  // 고치기 칸이 끼어들 수 있어 순서가 아니라 번호로 찾습니다
+  운동칸.querySelectorAll(".운동기록").forEach(줄 => {
+    줄.querySelector(".이름").textContent = (하루.운동 || [])[Number(줄.dataset.번호)].이름;
   });
 
   // 하루 전과 비교
@@ -1165,7 +1166,7 @@ function 요약그리기(){
     const 앞이름 = (앞날 === 오늘날짜()) ? "오늘" :
                    (앞날 === 날짜글(new Date(Date.now() - 86400000)) ? "어제"
                     : (Number(앞날.split("-")[1]) + "월 " + Number(앞날.split("-")[2]) + "일"));
-    앞칸.innerHTML = '<div class="어제줄">' + 앞이름 + 은는(앞이름) + ' <b>' + Math.round(앞합.kcal) + '</b>kcal 드셨습니다' +
+    앞칸.innerHTML = '<div class="어제줄">' + 앞이름 + 은는(앞이름) + ' <b>' + Math.round(앞합.kcal) + '</b>kcal 먹었습니다' +
       (합.끼니수 === 0 ? "" :
         " — " + (오늘임 ? "오늘은 " : "이 날은 ") + (차 === 0 ? "같습니다" :
           (차 > 0 ? "<b>" + 차 + "</b>kcal 많습니다" : "<b>" + (-차) + "</b>kcal 적습니다"))) + '</div>';
@@ -1197,14 +1198,14 @@ function 끼니고치기열기(번호){
     '<div class="고친이름"></div>' +
     /* 언제 먹었나 — 안 정해두면 "미정" 으로 남아 있고, 여기서 고칩니다.
        고른 것을 한 번 더 누르면 다시 미정으로 돌아갑니다. */
-    '<label style="margin-top:8px">언제 먹었나</label>' +
+    '<label style="margin-top:8px">먹은 때</label>' +
     '<div class="btns 때칸" id="때칸">' +
       끼니목록.map(t =>
         '<button type="button" data-v="' + t + '"' +
         (t === 기록때(m) ? ' class="on"' : '') +
         ' onclick="때고르기(this)">' + t + '</button>').join("") +
     '</div>' +
-    '<label style="margin-top:8px">얼마나 먹었나</label>' +
+    '<label style="margin-top:8px">먹은 양</label>' +
     /* 자주 쓰는 값은 버튼으로, 나눠 먹어서 0.33 같은 값이 나오면 오른쪽 칸에 직접.
        한 줄에 들어가도록 버튼은 숫자만 쓰고 "인분" 은 맨 끝에 한 번만 붙입니다. */
     '<div class="인분줄">' +
@@ -1604,6 +1605,57 @@ function 끼니저장(번호){
   저장(); 숫자갱신(); 요약그리기();
 }
 
+/* ── 운동 고치기 ─────────────────────────────────────
+   먹은 것과 같은 방식입니다 — 줄을 누르면 그 자리에 칸이 펼쳐집니다.
+   시간을 바꾸면 칼로리가 따라 바뀌고, 칼로리만 따로 고칠 수도 있습니다. */
+function 운동고치기열기(번호){
+  const 것들 = 상태.오늘.운동 || [];
+  const e = 것들[번호];
+  if(!e) return;
+
+  요약그리기();                          // 열려 있던 칸을 먼저 닫습니다 (id 겹침 방지)
+  const 줄 = document.querySelector('#요약운동 .운동기록[data-번호="' + 번호 + '"]');
+  if(!줄 || 줄.classList.contains("고치는중")) return;
+
+  줄.classList.add("고치는중");
+  줄.removeAttribute("onclick");
+  const 칸 = document.createElement("div");
+  칸.className = "고치기칸";
+  칸.innerHTML =
+    '<div class="고친이름"></div>' +
+    '<div class="row" style="margin-top:6px">' +
+      '<div><label>시간<i>분</i></label>' +
+        '<input type="number" id="운동분" min="1" max="600" value="' + (e.분 || 0) + '" ' +
+        'oninput="운동분바꾸기(' + 번호 + ')"></div>' +
+      '<div><label>kcal</label><input type="number" id="운동kcal" value="' + (e.kcal || 0) + '"></div>' +
+    '</div>' +
+    '<div class="바닥줄">' +
+      '<button class="go" onclick="운동저장(' + 번호 + ')">저장</button>' +
+      '<button class="go 보조" onclick="요약그리기()">취소</button>' +
+      '<button class="go 위험" onclick="운동지우기(' + 번호 + ')">지우기</button>' +
+    '</div>';
+  줄.after(칸);
+  칸.querySelector(".고친이름").textContent = e.이름;
+}
+
+/* 시간을 바꾸면 칼로리를 다시 계산해 칸에 넣습니다 */
+function 운동분바꾸기(번호){
+  const e = (상태.오늘.운동 || [])[번호];
+  if(!e) return;
+  const 분 = Number(document.getElementById("운동분").value);
+  if(!Number.isFinite(분) || 분 <= 0) return;
+  document.getElementById("운동kcal").value = 소모칼로리(e.met || 3, 분);
+}
+
+function 운동저장(번호){
+  const 것들 = 상태.오늘.운동 || [];
+  if(!것들[번호]) return;
+  const 분 = Math.max(1, Math.round(+document.getElementById("운동분").value || 0));
+  const kcal = Math.max(1, Math.round(+document.getElementById("운동kcal").value || 0));
+  것들[번호] = Object.assign({}, 것들[번호], { 분, kcal, 내가고침:true });
+  저장(); 숫자갱신(); 요약그리기();
+}
+
 /* 운동 기록 지우기 — 잘못 눌렀거나 두 번 들어간 경우 */
 function 운동지우기(번호){
   const 것들 = 상태.오늘.운동 || [];
@@ -1864,7 +1916,7 @@ function 채움카드(강제){
     /* 편의점 조합 — 식당이 문을 닫는 밤이나 야근하는 날의 유일한 길입니다 */
     (조합.length ?
     '<div class="묶음 편의점">' +
-      '<div class="묶음제목">편의점에서 채우면' +
+      '<div class="묶음제목">편의점' +
         (편의점 ? '<span>' + 편의점.가게 + ' · ' + 편의점.거리 + 'm</span>' : '') +
       '</div>' +
       조합.map(m => '<button onclick="편의점탭(\'' + m.이름 + '\')">' +
@@ -2042,7 +2094,7 @@ function 간식추천카드(){
     "<b>" + 간식말("간식보상", 존 ? "이런 건 어떠세요? 단백질이 있어서 좀 더 오래 갑니다."
                                  : "이런 건 어때? 단백질이 있어서 좀 더 오래 가.") + "</b>" +
     '<div class="묶음 편의점">' +
-      (편의점 ? '<div class="묶음제목">가까운 편의점<span></span></div>' : '') +
+      (편의점 ? '<div class="묶음제목">편의점<span></span></div>' : '') +
       후보.map(m => '<button onclick="간식먹기(this,\'' + m.이름 + '\')">' +
                     m.이름 + ' — ' + m.kcal + 'kcal · 단백질 ' + m.단백질 + 'g</button>').join("") +
       (편의점 && 편의점.지도
@@ -2320,7 +2372,7 @@ function 야근카드(){
       '<button type="button" onclick="채움카드(true)">근처에서 찾아보기</button>' +
     '</div>' +
     (가벼운것.length
-      ? '<div class="묶음"><div class="묶음제목">운동은 이 정도만</div>' +
+      ? '<div class="묶음"><div class="묶음제목">운동</div>' +
         가벼운것.map(운동한줄).join("") +
         '<div class="주의">' +
         (존대() ? "야근인 날은 운동보다 저녁 한 끼가 더 중요합니다."
@@ -2473,9 +2525,9 @@ function 집운동고르기(개수, 최대분){
    예전에는 "안 함"일 때만 보여주고 나머지는 근처 시설만 찾아줬습니다.
    그래서 가끔·꾸준히를 고른 사람에게는 홈트가 하나도 안 나왔습니다. */
 const 집운동설정 = {
-  "안 함":  { 개수:3, 최대분:0,  제목:"지금 바로 · 도구 없이" },
-  "가끔":   { 개수:2, 최대분:10, 제목:"안 하는 날 보태기 좋은 것" },
-  "꾸준히": { 개수:2, 최대분:8,  제목:"오늘은 가볍게 풀어주기" }
+  "안 함":  { 개수:3, 최대분:0,  제목:"집에서 할 것" },
+  "가끔":   { 개수:2, 최대분:10, 제목:"보태기 좋은 것" },
+  "꾸준히": { 개수:2, 최대분:8,  제목:"가볍게 풀 것" }
 };
 
 /* 집운동 묶음 하나를 만들어 돌려줍니다 (카드 두 곳에서 같이 씁니다) */
@@ -2502,7 +2554,9 @@ function 소모칼로리(met, 분){
 
 function 운동기록(이름, 분, met){
   if(!상태.오늘.운동) 상태.오늘.운동 = [];
-  상태.오늘.운동.push({ 이름, 분:Number(분) || 0, kcal:소모칼로리(met, 분), 시각:지금분() });
+  // met 도 같이 남깁니다 — 나중에 분만 고쳐도 칼로리를 다시 계산할 수 있습니다
+  상태.오늘.운동.push({ 이름, 분:Number(분) || 0, met:Number(met) || 3,
+                        kcal:소모칼로리(met, 분), 시각:지금분() });
   저장(); 숫자갱신();
   return 상태.오늘.운동[상태.오늘.운동.length - 1];
 }
